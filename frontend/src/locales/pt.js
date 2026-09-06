@@ -193,6 +193,8 @@ export default {
   'Cardio logged': 'Cardio registado',
   'Discard workout?': 'Descartar treino?',
   'The sets you logged in this session will be lost.': 'As séries registadas nesta sessão vão perder-se.',
+  'Set {0} / {1}': 'Série {0} / {1}',
+  'Round {0} / {1}': 'Ronda {0} / {1}',
   'Superset {0} / {1}': 'Supersérie {0} / {1}',
   'Exercise {0} / {1}': 'Exercício {0} / {1}',
   'Superset · do these back-to-back, rest when done': 'Supersérie · faz seguidos, descansa no final',

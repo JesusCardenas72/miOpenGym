@@ -189,6 +189,8 @@ export default {
   'Cardio logged': 'Kardió rögzítve',
   'Discard workout?': 'Elveted az edzést?',
   'The sets you logged in this session will be lost.': 'Az ebben az edzésben rögzített sorozatok elvesznek.',
+  'Set {0} / {1}': 'Sorozat {0} / {1}',
+  'Round {0} / {1}': 'Kör {0} / {1}',
   'Superset {0} / {1}': 'Szuperszett {0} / {1}',
   'Exercise {0} / {1}': 'Gyakorlat {0} / {1}',
   'Superset · do these back-to-back, rest when done': 'Szuperszett · végezd egymás után, pihenj csak utána',

@@ -189,6 +189,8 @@ export default {
   'Cardio logged': 'บันทึกคาร์ดิโอแล้ว',
   'Discard workout?': 'ทิ้งการออกกำลังกายนี้?',
   'The sets you logged in this session will be lost.': 'เซ็ตที่บันทึกไว้ในรอบนี้จะหายไป',
+  'Set {0} / {1}': 'เซต {0} / {1}',
+  'Round {0} / {1}': 'รอบ {0} / {1}',
   'Superset {0} / {1}': 'ซูเปอร์เซ็ต {0} / {1}',
   'Exercise {0} / {1}': 'ท่า {0} / {1}',
   'Superset · do these back-to-back, rest when done': 'ซูเปอร์เซ็ต · ทำต่อเนื่องกัน แล้วค่อยพักหลังทำครบทั้งคู่',

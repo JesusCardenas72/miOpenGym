@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { canMoveActiveWorkoutUnit, moveActiveWorkoutUnit } from './active-workout-order.js'
+import { canMoveActiveWorkoutUnit, moveActiveWorkoutUnit, moveActiveWorkoutUnitTo } from './active-workout-order.js'
 import { LANGS } from './i18n-core.js'
 import { PT_BR_OVERRIDES } from '../locales/pt-BR.js'
 
@@ -83,5 +83,59 @@ describe('active workout move locale coverage', () => {
     }
     expect(Object.hasOwn(PT_BR_OVERRIDES, 'Move up')).toBe(true)
     expect(Object.hasOwn(PT_BR_OVERRIDES, 'Move down')).toBe(true)
+  })
+})
+
+describe('dropping a whole unit into an arbitrary slot', () => {
+  const ids = active => active.entries.map(item => item.id)
+
+  it('moves a standalone exercise to the far end of the session', () => {
+    const active = { cur: 0, entries: [entry('a'), entry('b'), entry('c'), entry('d')] }
+    expect(moveActiveWorkoutUnitTo(active, 0, 3)?.indices).toEqual([1, 2, 3, 0])
+    expect(ids(active)).toEqual(['b', 'c', 'd', 'a'])
+  })
+
+  it('carries a superset whole rather than splitting it', () => {
+    const active = {
+      cur: 0,
+      entries: [entry('a'), entry('b', { sg: 'sg-1-2' }), entry('c', { sg: 'sg-1-2' }), entry('d')],
+    }
+    // slots are numbered with the dragged unit lifted out: 0 = before 'a'
+    expect(moveActiveWorkoutUnitTo(active, 2, 0)?.indices).toEqual([1, 2, 0, 3])
+    expect(ids(active)).toEqual(['b', 'c', 'a', 'd'])
+    expect(active.entries[0].sg).toBe('sg-1-2')
+    expect(active.entries[1].sg).toBe('sg-1-2')
+  })
+
+  it('never drops a unit into the middle of a superset', () => {
+    const active = {
+      cur: 0,
+      entries: [entry('a'), entry('b', { sg: 'sg' }), entry('c', { sg: 'sg' })],
+    }
+    moveActiveWorkoutUnitTo(active, 0, 1)
+    expect(ids(active)).toEqual(['b', 'c', 'a'])
+  })
+
+  it('keeps you on the exercise you were looking at, wherever it ends up', () => {
+    const selected = entry('c')
+    const active = { cur: 2, entries: [entry('a'), entry('b'), selected] }
+    moveActiveWorkoutUnitTo(active, 0, 2)
+    expect(ids(active)).toEqual(['b', 'c', 'a'])
+    expect(active.entries[active.cur]).toBe(selected)
+  })
+
+  it('reports nothing for a drop that changes no order', () => {
+    const active = { cur: 0, entries: [entry('a'), entry('b')] }
+    expect(moveActiveWorkoutUnitTo(active, 0, 0)).toBe(null)
+    expect(moveActiveWorkoutUnitTo(active, 0, undefined)).toBe(null)
+    expect(moveActiveWorkoutUnitTo(active, 9, 1)).toBe(null)
+    expect(moveActiveWorkoutUnitTo(null, 0, 1)).toBe(null)
+    expect(moveActiveWorkoutUnitTo({ cur: 0, entries: [] }, 0, 1)).toBe(null)
+  })
+
+  it('clamps a slot past the end instead of losing the unit', () => {
+    const active = { cur: 0, entries: [entry('a'), entry('b'), entry('c')] }
+    moveActiveWorkoutUnitTo(active, 0, 99)
+    expect(ids(active)).toEqual(['b', 'c', 'a'])
   })
 })

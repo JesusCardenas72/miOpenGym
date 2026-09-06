@@ -3,6 +3,8 @@
 // (import.meta.glob lazy
 // loads, the React subscription hook) live in i18n.js and re-export from here.
 
+import { displayName, searchText, cleanOverride, DEFAULT_NAME_STYLE } from './exercise-name.js'
+
 export const LANGS = {
   en: 'English', de: 'Deutsch', es: 'Español', fr: 'Français', it: 'Italiano',
   pt: 'Português (Portugal)', 'pt-BR': 'Português (Brasil)', pl: 'Polski',
@@ -20,6 +22,10 @@ let lang = 'en'                 // set only by _setLangState, called from i18n.j
 let dict = {}                   // current locale pack (empty = English fallback)
 let instr = null                // { exId: [steps] } for the current language, null = English
 let exerciseNames = null        // { exId: translated name }, null = original catalogue name
+// Both come from persisted state (S.exNameStyle / S.exNames) rather than from a locale pack, so
+// they survive a language switch and are set separately — see _setExerciseNameOptions.
+let nameStyle = DEFAULT_NAME_STYLE  // 'bilingual' = "translated (English)", 'local' = translated only
+let nameOverrides = {}          // { exId: name you typed by hand }, wins over both of the above
 let version = 0                 // bumped on every setLang; drives the React subscription selector
 
 export const getLang = () => lang
@@ -36,25 +42,50 @@ export function t(s, ...args) {
 // Instructions for an exercise in the current language (English steps as fallback).
 export const instrFor = ex => (instr && instr[ex.id]) || ex.st || []
 
-// Built-in catalogue names are bilingual when a complete translated name pack is active.
-// User-created exercises have no entry in the pack and keep their exact chosen name.
-export const exerciseNameFor = ex => {
-  const translated = exerciseNames && ex && exerciseNames[ex.id]
-  if (!translated) return ex?.n || ''
-  // Some names (Burpee, Pilates, brand/model terms) are the established term in the target
-  // language too. Repeating an identical loanword in parentheses adds noise rather than
-  // context. Compared in the active language's own casing rules, not hardcoded to one —
-  // this only ever differs from ordinary casing for languages with locale-specific rules
-  // (e.g. Turkish dotless i), which does not include any language shipped here today.
-  return translated.toLocaleLowerCase(lang) === ex.n.toLocaleLowerCase('en')
-    ? translated
-    : `${translated} (${ex.n})`
-}
+// What an exercise is called on screen. A name you typed by hand wins; otherwise a complete
+// translated name pack gives either "translated (English)" or the translation alone, depending
+// on the style you picked. User-created exercises have no entry in the pack, so with no override
+// they keep their exact chosen name. The policy itself is `displayName` in exercise-name.js.
+const translatedNameFor = ex => (exerciseNames && ex && exerciseNames[ex.id]) || ''
 
-// Search both the localized and canonical English title without changing persisted data.
-export const exerciseNameSearchText = ex => {
-  const translated = exerciseNames && ex && exerciseNames[ex.id]
-  return translated ? `${translated} ${ex.n}` : (ex?.n || '')
+export const exerciseNameFor = ex => displayName({
+  base: ex?.n || '',
+  translated: translatedNameFor(ex),
+  override: ex && nameOverrides[ex.id],
+  style: nameStyle,
+  lang,
+})
+
+/** The same name with any manual rename ignored — what clearing the rename field goes back to. */
+export const catalogueNameFor = ex => displayName({
+  base: ex?.n || '',
+  translated: translatedNameFor(ex),
+  style: nameStyle,
+  lang,
+})
+
+// Search the name on screen, the localized title and the canonical English one, so neither a
+// rename nor the 'local' style can hide an exercise from the name you have been typing for it.
+export const exerciseNameSearchText = ex => searchText({
+  base: ex?.n || '',
+  translated: translatedNameFor(ex),
+  override: ex && nameOverrides[ex.id],
+})
+
+/** The manual name for an exercise, or '' — what the rename sheet prefills and clears. */
+export const exerciseNameOverrideFor = ex => cleanOverride(ex && nameOverrides[ex.id])
+
+/**
+ * Apply the persisted naming preferences (S.exNameStyle, S.exNames). Kept apart from
+ * _setLangState because these are yours, not the locale pack's: switching language must not
+ * reset them. Bumps `version` so the React subscription re-renders, the same way a language
+ * switch does. Returns the new version.
+ */
+export function _setExerciseNameOptions(style, overrides) {
+  nameStyle = style === 'local' ? 'local' : DEFAULT_NAME_STYLE
+  nameOverrides = overrides || {}
+  version++
+  return version
 }
 
 // Called by i18n.js's setLang once the locale pack has been loaded — kept here rather than

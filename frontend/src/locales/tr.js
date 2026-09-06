@@ -193,6 +193,8 @@ export default {
   'Cardio logged': 'Kardiyo kaydedildi',
   'Discard workout?': 'Antrenman iptal edilsin mi?',
   'The sets you logged in this session will be lost.': 'Bu oturumda kaydettiğin setler kaybolacak.',
+  'Set {0} / {1}': 'Set {0} / {1}',
+  'Round {0} / {1}': 'Tur {0} / {1}',
   'Superset {0} / {1}': 'Süperset {0} / {1}',
   'Exercise {0} / {1}': 'Egzersiz {0} / {1}',
   'Superset · do these back-to-back, rest when done': 'Süperset · art arda yap, sonunda dinlen',

@@ -6,13 +6,15 @@
 import { useSyncExternalStore } from 'react'
 import {
   LANGS, INSTR_LANGS, EXERCISE_NAME_LANGS, DATE_LOCALES,
-  getLang, dateLocale, t, instrFor, exerciseNameFor, exerciseNameSearchText, getVersion, _setLangState
+  getLang, dateLocale, t, instrFor, exerciseNameFor, exerciseNameSearchText,
+  exerciseNameOverrideFor, catalogueNameFor, getVersion, _setLangState, _setExerciseNameOptions
 } from './i18n-core.js'
 
 export {
   LANGS, INSTR_LANGS, EXERCISE_NAME_LANGS, DATE_LOCALES,
-  getLang, dateLocale, t, instrFor, exerciseNameFor, exerciseNameSearchText
+  getLang, dateLocale, t, instrFor, exerciseNameFor, exerciseNameSearchText, exerciseNameOverrideFor, catalogueNameFor
 }
+export { NAME_STYLES, DEFAULT_NAME_STYLE } from './exercise-name.js'
 
 // Vite code-splits locale, instruction and exercise-name packs via import.meta.glob. They are
 // lazy, so the production bundle ships English only until another language is selected.
@@ -23,6 +25,15 @@ const exerciseNamePacks = import.meta.glob('../exercise-names/*.js')
 // React subscription bookkeeping — kept here, not in core, so core has zero React coupling.
 const subs = new Set()
 const notify = () => { subs.forEach(f => f()) }
+
+/* The naming preferences are persisted app state, not a lazy-loaded pack, so this needs none of
+   setLang's async machinery — but it does need the same `notify`, since every screen that shows
+   an exercise name is subscribed through useLang. Called from App.jsx whenever S.exNameStyle or
+   S.exNames changes. */
+export function setExerciseNameOptions(style, overrides) {
+  _setExerciseNameOptions(style, overrides)
+  notify()
+}
 
 export async function setLang(l) {
   if (!LANGS[l]) l = 'en'

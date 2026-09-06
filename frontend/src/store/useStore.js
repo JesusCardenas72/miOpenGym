@@ -21,6 +21,15 @@ export const DEF = {
   // Equipment profiles (issue: filter Library/picker/routines by what you actually own —
   // e.g. "Home" vs "Gym" — building on the session-only equipment filter from issue #6).
   equipProfiles: [], activeEquipId: null, equipFilterOn: false,
+  // Per-exercise defaults keyed by exercise id — the rep target, rest, bodyweight/per-side
+  // flags, belt load, rep ceiling, intensifier and progression an exercise carries into every
+  // routine that uses it. Sets and the working weight stay with the routine. See
+  // lib/exercise-defaults.js.
+  exDefaults: {},
+  // Naming: how a translated catalogue name is shown ('bilingual' = "press de banca (bench
+  // press)", 'local' = translation only), plus per-exercise manual names keyed by exercise id.
+  // Both are read by lib/i18n-core.js's exerciseNameFor — see lib/exercise-name.js.
+  exNameStyle: 'bilingual', exNames: {},
 }
 const clone = o => JSON.parse(JSON.stringify(o))
 

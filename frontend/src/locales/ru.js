@@ -193,6 +193,8 @@ export default {
   'Cardio logged': 'Кардио записано',
   'Discard workout?': 'Отменить тренировку?',
   'The sets you logged in this session will be lost.': 'Подходы, записанные в этой сессии, будут потеряны.',
+  'Set {0} / {1}': 'Подход {0} / {1}',
+  'Round {0} / {1}': 'Круг {0} / {1}',
   'Superset {0} / {1}': 'Суперсет {0} / {1}',
   'Exercise {0} / {1}': 'Упражнение {0} / {1}',
   'Superset · do these back-to-back, rest when done': 'Суперсет · выполняй подряд, отдых в конце',

@@ -4,7 +4,7 @@ import { useStore } from './store/useStore.js'
 import { useUI } from './store/useUI.js'
 import { bindUI } from './components/ui.jsx'
 import { ACCENTS } from './lib/format.js'
-import { setLang, useLang } from './lib/i18n.js'
+import { setLang, setExerciseNameOptions, useLang } from './lib/i18n.js'
 import { setNav } from './lib/nav.js'
 import { initBackButton } from './lib/back.js'
 import { useWakeLock } from './lib/wakelock.js'
@@ -12,6 +12,7 @@ import { startFlow } from './sheets.jsx'
 import Icon from './components/Icon.jsx'
 import TabBar from './components/TabBar.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
+import ScreenSlider from './components/ScreenSlider.jsx'
 import Modals from './components/Modals.jsx'
 import Toast from './components/Toast.jsx'
 import RestTimer from './components/RestTimer.jsx'
@@ -67,6 +68,9 @@ function Shell() {
     return () => mql.removeEventListener('change', onChange)
   }, [S.theme, S.accent])
   useEffect(() => { setLang(S.lang || 'en') }, [S.lang])
+  // Naming preferences are plain state, so unlike the language they need no pack load — but they
+  // change what every screen calls an exercise, so they go through the same notify/useLang path.
+  useEffect(() => { setExerciseNameOptions(S.exNameStyle, S.exNames) }, [S.exNameStyle, S.exNames])
   useEffect(() => { document.documentElement.lang = S.lang || 'en' }, [langV, S.lang])
   // Forward navigation starts at the top; going back lands where you left off.
   // The position is recorded from scroll events rather than read at route
@@ -94,35 +98,41 @@ function Shell() {
 
   const authed = user || isGuest
   if (!ready && !authed) return (
-    <div id="app">
+    <div className="app">
       <div style={{ paddingTop: '44vh', display: 'flex', justifyContent: 'center', fontSize: 34, color: 'var(--label-3)' }}>
         <Icon name="dumbbell" />
       </div>
     </div>
   )
 
+  /* One layer of the sliding deck. `pathname` is the layer's own route, not necessarily the
+     current one — mid-transition the screen being left is still drawn, at the route it was.
+     The boundary is keyed with the layer, so a view that throws is contained and switching
+     tabs re-mounts it: the tab bar is always a way out. */
+  const screen = pathname => (
+    <ErrorBoundary>
+      <Routes location={pathname}>
+        <Route path="/home" element={<Home />} />
+        <Route path="/plan" element={<Plan />} />
+        <Route path="/plan/r/:id" element={<RoutineEdit />} />
+        <Route path="/workout" element={<Workout />} />
+        <Route path="/stats" element={<Stats />} />
+        <Route path="/history" element={<History />} />
+        <Route path="/library" element={<Library />} />
+        <Route path="/settings" element={<Settings />} />
+        <Route path="/admin" element={user?.admin ? <Admin /> : <Navigate to="/home" replace />} />
+        <Route path="*" element={<Navigate to="/home" replace />} />
+      </Routes>
+    </ErrorBoundary>
+  )
+
   return (
     <>
-      {/* keyed on the route: a view that throws is contained, and switching tabs
-          re-mounts the boundary, so the tab bar is always a way out */}
-      <div id="app" className="vfade" key={loc.pathname}>
-        <ErrorBoundary>
-          {!authed ? <Login /> : needsMobileOnboarding ? <MobileOnboarding /> : (
-            <Routes>
-              <Route path="/home" element={<Home />} />
-              <Route path="/plan" element={<Plan />} />
-              <Route path="/plan/r/:id" element={<RoutineEdit />} />
-              <Route path="/workout" element={<Workout />} />
-              <Route path="/stats" element={<Stats />} />
-              <Route path="/history" element={<History />} />
-              <Route path="/library" element={<Library />} />
-              <Route path="/settings" element={<Settings />} />
-              <Route path="/admin" element={user?.admin ? <Admin /> : <Navigate to="/home" replace />} />
-              <Route path="*" element={<Navigate to="/home" replace />} />
-            </Routes>
-          )}
-        </ErrorBoundary>
-      </div>
+      {!authed || needsMobileOnboarding ? (
+        <div className="app vfade">
+          <ErrorBoundary>{!authed ? <Login /> : <MobileOnboarding />}</ErrorBoundary>
+        </div>
+      ) : <ScreenSlider render={screen} />}
       <TabBar onStart={startFlow} />
       <RestTimer />
       <Modals />

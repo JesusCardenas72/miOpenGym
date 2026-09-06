@@ -276,6 +276,8 @@ export const PT_BR_OVERRIDES = {
   'Nothing left — went to failure': 'Sem repetições restantes — até a falha',
   'Tap a muscle to see its exercises.': 'Toque em um músculo para ver seus exercícios.',
   'Superset': 'Superset',
+  'Set {0} / {1}': 'Série {0} / {1}',
+  'Round {0} / {1}': 'Rodada {0} / {1}',
   'Superset {0} / {1}': 'Superset {0} / {1}',
   'Superset with exercise above': 'Superset com o exercício acima',
   'Guest mode — data lives only in this browser.': 'Modo visitante — os dados ficam somente neste navegador.',

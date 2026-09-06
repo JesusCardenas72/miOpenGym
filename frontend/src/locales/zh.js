@@ -193,6 +193,8 @@ export default {
   'Cardio logged': '有氧已记录',
   'Discard workout?': '放弃训练？',
   'The sets you logged in this session will be lost.': '本次记录的组数将丢失。',
+  'Set {0} / {1}': '组 {0} / {1}',
+  'Round {0} / {1}': '轮 {0} / {1}',
   'Superset {0} / {1}': '超级组 {0} / {1}',
   'Exercise {0} / {1}': '动作 {0} / {1}',
   'Superset · do these back-to-back, rest when done': '超级组 · 连续完成，全部做完再休息',

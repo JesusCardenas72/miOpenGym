@@ -193,6 +193,8 @@ export default {
   'Cardio logged': 'कार्डियो दर्ज हुआ',
   'Discard workout?': 'वर्कआउट छोड़ें?',
   'The sets you logged in this session will be lost.': 'इस सत्र में दर्ज किए सेट खो जाएँगे।',
+  'Set {0} / {1}': 'सेट {0} / {1}',
+  'Round {0} / {1}': 'राउंड {0} / {1}',
   'Superset {0} / {1}': 'सुपरसेट {0} / {1}',
   'Exercise {0} / {1}': 'व्यायाम {0} / {1}',
   'Superset · do these back-to-back, rest when done': 'सुपरसेट · इन्हें लगातार करें, अंत में आराम',

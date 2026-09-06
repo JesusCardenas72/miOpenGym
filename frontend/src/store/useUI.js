@@ -1,12 +1,12 @@
 import { create } from 'zustand'
 import { uid } from '../lib/format.js'
 import { beep, vibrate, playClips, stopClips, clipsDuration } from '../lib/sound.js'
-// The rest alert: one recording holding the spoken count and the bells that close it. It is
-// scheduled to *land* on zero rather than start there — the last bell and the end of the rest
-// are the same instant — so it begins its own length before the timer runs out.
+// The rest alert: a single boxing-bell ring. It is scheduled to *land* on zero rather than
+// start there — the end of the bell and the end of the rest are the same instant — so it
+// begins its own length before the timer runs out.
 // (playClips takes a list because the alert used to be two separate files; a single-entry one
 // is the same call, and keeping the list means adding a second clip needs no new plumbing.)
-import restAlertClip from '../assets/3a1-campanas.mp3'
+import restAlertClip from '../assets/boxing-bell-single_CORTO.mp3'
 
 const REST_ALERT_CLIPS = [restAlertClip]
 import { api } from '../lib/api.js'

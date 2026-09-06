@@ -71,7 +71,7 @@ vi.mock('../sheets.jsx', () => ({
   exerciseNoteSheet: vi.fn(),
   sessionNoteSheet: vi.fn(),
 }))
-vi.mock('../components/Media.jsx', () => ({ default: () => null }))
+vi.mock('../components/Media.jsx', () => ({ default: () => null, Thumb: () => null }))
 // api.js reads navigator.userAgent at module scope. This file installs its own DOM inside the
 // tests rather than declaring a vitest environment, so it must not depend on an ambient one.
 vi.mock('../lib/api.js', () => ({
@@ -131,6 +131,9 @@ async function unmount() {
   dom = null
 }
 
+// Indexes the checkboxes that are *on screen*. The workout shows one set at a time (a superset
+// round shows its linked sets together), so that is one checkbox per exercise of the current
+// unit — not one per set of the session.
 async function toggleSet(index) {
   const checkbox = container.querySelectorAll('[role="checkbox"]')[index]
   expect(checkbox).toBeTruthy()
@@ -291,7 +294,8 @@ describe('Workout set completion flow', () => {
       exercise('superset-b', [true, true, false], { sg: group }),
       exercise('next-exercise', [false, false, false]),
     ], 1)
-    await toggleSet(5)
+    // The round on screen is the last one: superset-a's third set is done, superset-b's is not.
+    await toggleSet(1)
 
     expect(mocks.topWeightSheet).toHaveBeenCalledWith(1)
     expect(mocks.S.active.cur).toBe(1)
@@ -563,7 +567,7 @@ describe('superset flow survives an exercise being removed mid-session', () => {
     expect(mocks.S.active.cur).toBe(1)
 
     // Partner closes the round (each still has a second set), which is what starts the rest.
-    await toggleSet(2)
+    await toggleSet(1)
     expect(mocks.startRest).toHaveBeenCalledWith(90, expect.any(Number))
   })
 })
@@ -578,9 +582,11 @@ describe('superset actionable-set centring', () => {
 
     await rerenderAt(1)
 
+    // Only the round being worked is on screen, so that is the only row this exercise draws.
     const rows = container.querySelector('[data-exidx="1"]').querySelectorAll('.setrow')
+    expect(rows).toHaveLength(1)
     expect(mocks.scrollCalls).toEqual([
-      { node: rows[1], options: { behavior: 'smooth', block: 'center' } },
+      { node: rows[0], options: { behavior: 'smooth', block: 'center' } },
     ])
   })
 
@@ -593,9 +599,11 @@ describe('superset actionable-set centring', () => {
 
     await rerenderAt(1)
 
+    // Only the round being worked is on screen, so that is the only row this exercise draws.
     const rows = container.querySelector('[data-exidx="1"]').querySelectorAll('.setrow')
+    expect(rows).toHaveLength(1)
     expect(mocks.scrollCalls).toEqual([
-      { node: rows[1], options: { behavior: 'smooth', block: 'center' } },
+      { node: rows[0], options: { behavior: 'smooth', block: 'center' } },
     ])
   })
 

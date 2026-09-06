@@ -200,6 +200,8 @@ export default {
   'Cardio logged': 'Cardio eingetragen',
   'Discard workout?': 'Training verwerfen?',
   'The sets you logged in this session will be lost.': 'Die in dieser Einheit eingetragenen Sätze gehen verloren.',
+  'Set {0} / {1}': 'Satz {0} / {1}',
+  'Round {0} / {1}': 'Runde {0} / {1}',
   'Superset {0} / {1}': 'Supersatz {0} / {1}',
   'Exercise {0} / {1}': 'Übung {0} / {1}',
   'Superset · do these back-to-back, rest when done': 'Supersatz · direkt nacheinander, Pause erst danach',

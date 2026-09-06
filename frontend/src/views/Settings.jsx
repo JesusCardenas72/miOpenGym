@@ -7,7 +7,7 @@ import { effortOf } from '../lib/history.js'
 import { api, webauthnOK, passkeyLogin, passkeyRegister, IS_ANDROID } from '../lib/api.js'
 import { pushSupported, enablePush, disablePush, sendTestPush } from '../lib/push.js'
 import { wakeLockSupported } from '../lib/wakelock.js'
-import { t, LANGS, INSTR_LANGS } from '../lib/i18n.js'
+import { t, LANGS, INSTR_LANGS, EXERCISE_NAME_LANGS } from '../lib/i18n.js'
 import { DEMO, REPO } from '../lib/demo.js'
 import { MOBILE, shareExport, syncReminder } from '../lib/mobile.js'
 import { ConnectSheet } from './MobileOnboarding.jsx'
@@ -120,6 +120,14 @@ export default function Settings() {
           subtitle: INSTR_LANGS.includes(k) ? null : t("Exercise instructions aren't available in this language yet — they stay in English."),
         }))}
       />
+      {/* Only offered for a language that actually has a translated exercise-name pack —
+          everywhere else both options would render the identical English name. */}
+      {EXERCISE_NAME_LANGS.includes(S.lang || 'en') && <Row icon="pencil" iconTint="var(--purple)" title={t('Exercise names')}
+        subtitle={t('Show the English term next to the translation, or the translation on its own. Any single exercise can also be renamed by hand from its detail page.')}>
+        <Segmented className="seg-inline"
+          options={[{ value: 'bilingual', label: t('With English') }, { value: 'local', label: t('Translated only') }]}
+          value={S.exNameStyle === 'local' ? 'local' : 'bilingual'} onChange={v => update(s => { s.exNameStyle = v })} />
+      </Row>}
       <Row icon="scale" iconTint="var(--teal)" title={t('Weight unit')}>
         <Segmented className="seg-inline"
           options={[{ value: 'kg', label: 'kg' }, { value: 'lb', label: 'lb' }]}

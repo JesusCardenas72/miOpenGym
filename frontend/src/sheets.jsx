@@ -6,7 +6,7 @@ import { activeProfile, exAvailable, ALL_EQUIPMENT, newProfile } from './lib/equ
 import { fmtDate, fmtNum, fmtVol, fmtDur, durPart, todayISO, isoOf, uid, exCount, DAYN, MONTHS_LONG, ACCENTS } from './lib/format.js'
 import { lastEntryFor, bestWeightFor, buildSets, effectiveRoutineId, workoutVolume, setsDone, setsDoneActive, lastBW, supersetUnits, unitOf, setLabel, defaultConfig, cleanupSg, modeOf, effortOf, isBw, isPerSide, sideReps, workSetsDone, applyIntensifierPlan, MAX_PLANNED_WARMUPS, NOTE_MAX } from './lib/history.js'
 import { beep, vibrate } from './lib/sound.js'
-import { t, instrFor, exerciseNameFor, getLang, INSTR_LANGS } from './lib/i18n.js'
+import { t, instrFor, exerciseNameFor, exerciseNameOverrideFor, catalogueNameFor, getLang, INSTR_LANGS } from './lib/i18n.js'
 import { nav } from './lib/nav.js'
 import { starterRoutines } from './lib/starter.js'
 import Media, { Thumb } from './components/Media.jsx'
@@ -22,6 +22,7 @@ import { buildPlanBundle, parsePlan, mergePlan, printPlan } from './lib/plan-sha
 import { estimate1RM, best1RM, is1RMRecord, REP_CAP } from './lib/onerm.js'
 import { nextPrescription, applyPrescription, policyFor, defaultIncrement, POLICIES_FOR, POLICY_NAME, POLICY_DESC, MAX_BW_SETS } from './lib/progression.js'
 import { normalizeRepRange } from './lib/rep-range.js'
+import { seedConfig, changedGlobals, applyGlobals, isGlobalField, GLOBAL_LABEL } from './lib/exercise-defaults.js'
 import { MOBILE, shareExport } from './lib/mobile.js'
 import { buildCompletedWorkout } from './lib/finish-workout.js'
 import { isWarmupRow } from './lib/workout-model.js'
@@ -515,10 +516,10 @@ function ExerciseDetail({ ex, close }) {
     {ex.desc && <div className="exnote">{ex.desc}</div>}
     {best > 0 && <div className="small row" style={{ marginBottom: 6, gap: 5 }}><Icon name="trophy" style={{ fontSize: 14, color: 'var(--yellow)' }} />{t('Best:')} <b className="accent">{fmtNum(best)} {st.unit}</b>{last ? ` · ${t('last')} ${fmtDate(last.d)}: ${last.sets.map(s => setLabel(ex.id, s, last.target)).join(', ')}` : ''}</div>}
     <Button variant="primary" icon="plus" style={{ margin: '10px 0 4px' }} onClick={() => addToRoutineSheet(ex)}>{t('Add to my plan')}</Button>
-    {ex.custom && <div className="row" style={{ gap: 8, marginTop: 8 }}>
+    {ex.custom ? <div className="row" style={{ gap: 8, marginTop: 8 }}>
       <Button icon="pencil" style={{ flex: 1 }} onClick={() => { close(); customExSheet(ex) }}>{t('Edit')}</Button>
       <Button variant="danger" icon="trash" style={{ flex: 1 }} onClick={() => deleteCustomEx(ex, close)}>{t('Delete')}</Button>
-    </div>}
+    </div> : <Button icon="pencil" style={{ marginTop: 8 }} onClick={() => { close(); renameExSheet(ex) }}>{t('Rename this exercise')}</Button>}
     {!isCardio(ex) && <OneRM ex={ex} />}
     {instrFor(ex).length > 0 &&<><h4 className="sec">{t('How to')}{!INSTR_LANGS.includes(getLang()) && <span className="dim" style={{ textTransform: 'none', letterSpacing: 0 }}> · {t('instructions in English')}</span>}</h4><ol className="steps-list">{instrFor(ex).map((s, i) => <li key={i}>{s}</li>)}</ol></>}
   </>
@@ -627,6 +628,41 @@ function CustomExForm({ existing, prefill, onDone, close }) {
   </>
 }
 export const customExSheet = (existing, onDone, prefill) => ui().openSheet(close => <CustomExForm existing={existing} prefill={prefill} onDone={onDone} close={close} />)
+
+/* ---- manual rename ----
+   A built-in exercise cannot be edited (its id, muscles and animation come from the catalogue
+   and a dataset refresh owns them), but what it is *called* is yours: the catalogue name is
+   often a mouthful, a translation may not be the word your gym uses, and the English term in
+   parentheses is noise once you know the exercise. So the name alone is overridable, stored
+   apart from the catalogue in S.exNames and applied by exerciseNameFor everywhere at once.
+   Clearing the field restores the catalogue name — that is the undo, so there is no separate
+   reset button to explain. */
+function RenameExForm({ ex, close }) {
+  const nameRef = useRef(null)
+  const onNameFocus = useSheetKeyboard(nameRef)
+  const original = catalogueNameFor(ex)
+  const [n, setN] = useState(() => exerciseNameOverrideFor(ex))
+  const save = () => {
+    const name = n.trim()
+    const dup = allExercises(S()).find(e => e.id !== ex.id && exerciseNameFor(e).toLowerCase() === name.toLowerCase())
+    if (name && dup) { toast(t('“{0}” already exists', exerciseNameFor(dup))); return }
+    update(s => {
+      s.exNames = { ...(s.exNames || {}) }
+      if (name) s.exNames[ex.id] = name
+      else delete s.exNames[ex.id]
+    })
+    close()
+    toast(name ? t('Saved') : t('Original name restored'))
+  }
+  return <>
+    <h3>{t('Rename this exercise')}</h3>
+    <div className="muted small" style={{ marginBottom: 12 }}>{t('Only the name changes — your routines, history and stats keep pointing at the same exercise. Leave it empty to go back to “{0}”.', original)}</div>
+    <input ref={nameRef} className="input" placeholder={original} value={n} onFocus={onNameFocus} onChange={e => setN(e.target.value)} />
+    <div style={{ height: 14 }} />
+    <Button variant="primary" onClick={save}>{t('Save')}</Button>
+  </>
+}
+export const renameExSheet = ex => ui().openSheet(close => <RenameExForm ex={ex} close={close} />)
 
 export function deleteCustomEx(ex, afterDelete) {
   if (S().active?.entries.some(e => e.id === ex.id)) { toast(t('Finish your current workout first')); return }
@@ -836,10 +872,20 @@ export const equipmentProfileSheet = profile => ui().openSheet(close => <Equipme
 // on "follow the routine" it inherits, so most people never touch it.
 const progressionStepOf = (c, mode, ex, unit) =>
   c.inc >= 0 ? c.inc : (mode === 'time' ? 5 : defaultIncrement(ex.id, unit))
+// One remembered value, as it reads in the "changes every routine" dialog.
+function fmtGlobalValue(field, value, unit) {
+  if (field === 'bodyweight' || field === 'side') return value ? t('On') : t('Off')
+  if (value === undefined || value === null || value === '') return t('None')
+  if (field === 'intensifier') return t(value.type === 'dropset' ? 'Drop-set' : 'Rest-pause')
+  if (field === 'prog') return t(POLICY_NAME[value] || value)
+  if (field === 'restSec') return t('{0}s', fmtNum(value))
+  if (field === 'inc' || field === 'weight') return fmtNum(value) + ' ' + unit
+  return fmtNum(value)
+}
 const progressionStepIsValid = (step, policy) =>
   policy === 'off' || (Number.isFinite(step) && step > 0)
 
-function ProgressionFields({ ex, mode, c, setC, routine, unit, perSide }) {
+function ProgressionFields({ ex, mode, c, setC, routine, unit, perSide, gcls }) {
   const options = POLICIES_FOR[mode] || ['off']
   if (options.length < 2) return null
   const inherited = policyFor({ id: ex.id }, routine, mode)
@@ -857,22 +903,23 @@ function ProgressionFields({ ex, mode, c, setC, routine, unit, perSide }) {
   return <>
     <h4 className="sec">{t('Progression')}</h4>
     <div className="sect-b" style={{ marginBottom: 8 }}>
-      <SelectRow title={t('Rule')} sheetTitle={t('Progression')} value={c.prog || ''} onChange={setRule}
+      <SelectRow className={gcls('prog')} title={t('Rule')} sheetTitle={t('Progression')} value={c.prog || ''} onChange={setRule}
         options={[{ value: '', label: t('Follow the routine ({0})', t(POLICY_NAME[inherited])) },
           ...options.map(p => ({ value: p, label: t(POLICY_NAME[p]) }))]} />
     </div>
     <div className="small dim" style={{ marginBottom: active === 'off' ? 18 : 10 }}>{t(POLICY_DESC[active])}</div>
     {active !== 'off' && <div className="row cfgrow" style={{ marginBottom: 18 }}>
       <Stepper label={mode === 'time' ? t('Step (seconds)') : t('Step ({0})', unit)} value={inc}
-        step={mode === 'time' ? 5 : 1.25} decimal={mode !== 'time'} invalid={invalid} className={invalid ? 'invalid' : ''}
+        step={mode === 'time' ? 5 : 1.25} decimal={mode !== 'time'} invalid={invalid}
+        className={(invalid ? 'invalid' : '') + gcls('inc')}
         onChange={v => setC(x => ({ ...x, inc: v }))} />
       {active === 'double' && <>
         {/* The draft stays as typed: normalising on every keystroke turned "12" into 92 (the
             "1" was pulled above the lower bound first). Save and the engine normalise anyway. */}
         <Stepper label={t('Reps from')} value={c.repsMin ?? range.repsMin} step={stride} decimal={false}
-          onChange={v => setC(x => ({ ...x, repsMin: v }))} />
+          className={gcls('repsMin')} onChange={v => setC(x => ({ ...x, repsMin: v }))} />
         <Stepper label={t('Reps up to')} value={c.reps ?? range.reps} step={stride} decimal={false}
-          onChange={v => setC(x => ({ ...x, reps: v }))} />
+          className={gcls('reps')} onChange={v => setC(x => ({ ...x, reps: v }))} />
       </>}
     </div>}
     {invalid && <div className="small" role="alert" style={{ color: 'var(--red)', marginTop: -10, marginBottom: 18 }}>
@@ -884,7 +931,11 @@ function ProgressionFields({ ex, mode, c, setC, routine, unit, perSide }) {
 function ExConfig({ ex, existing, onSave, onDelete, close, routine, initial }) {
   const st = useStore(s => s.S)
   const cardio = isCardio(ex.id)
-  const seed = existing || initial || defaultConfig(ex.id)
+  // What this exercise was given the first time it was configured, anywhere. A new instance
+  // starts from it (that is the point of a global field); one being edited already carries it.
+  const globals = st.exDefaults?.[ex.id]
+  const base = existing || initial || defaultConfig(ex.id)
+  const seed = existing ? base : seedConfig(base, globals, cardio ? 'cardio' : modeOf({ ...base, id: ex.id }))
   const [c, setC] = useState(() => {
     const cfg = { ...seed }
     return policyFor({ ...cfg, id: ex.id }, routine, modeOf({ ...cfg, id: ex.id })) === 'double'
@@ -899,6 +950,9 @@ function ExConfig({ ex, existing, onSave, onDelete, close, routine, initial }) {
   const perSide = isPerSide(c)
   const progressionPolicy = policyFor({ ...c, id: ex.id }, routine, mode)
   const progressionStepInvalid = !progressionStepIsValid(progressionStepOf(c, mode, ex, st.unit), progressionPolicy)
+  // Colour says where a value lives. A global field belongs to the exercise: what you type
+  // here is what every other routine using it starts from. See lib/exercise-defaults.js.
+  const gcls = field => (isGlobalField(field, { ...c, bodyweight: bw }, mode) ? ' gfield' : '')
   const activePolicy = policyFor({ ...c, id: ex.id }, routine, mode)
   const double = mode === 'reps' && activePolicy === 'double'
   // Keep whatever the other mode already had (sets, weight) and fill only what is missing.
@@ -908,9 +962,37 @@ function ExConfig({ ex, existing, onSave, onDelete, close, routine, initial }) {
       ? { ...next, ...normalizeRepRange(next.reps, next.repsMin, isPerSide(next) ? 2 : 1) }
       : next
   })
+  // Writing a global field rewrites it for every routine that uses this exercise, so it is
+  // spelled out and confirmed rather than happening quietly behind the sheet. Cancel leaves
+  // the sheet open on the typed value, so a change can be corrected instead of retyped.
+  const commit = out => {
+    const resolved = { ...out, bodyweight: bw }
+    const finish = () => {
+      close()
+      update(s => { s.exDefaults = applyGlobals(s.exDefaults, ex.id, resolved, mode) })
+      onSave(out)
+    }
+    const changes = changedGlobals(resolved, globals, mode)
+    if (!changes.length) return finish()
+    confirmSheet({
+      title: t('Change this for every routine?'),
+      message: <>
+        <div style={{ marginBottom: 12 }}>
+          {t('These belong to the exercise, not to this routine — every routine that uses {0} will start from the new value.', exerciseNameFor(ex))}
+        </div>
+        <ul className="gfield-diff">
+          {changes.map(ch => <li key={ch.field}>
+            <span>{t(GLOBAL_LABEL[ch.field])}</span>
+            <b>{fmtGlobalValue(ch.field, ch.from, st.unit)} → {fmtGlobalValue(ch.field, ch.to, st.unit)}</b>
+          </li>)}
+        </ul>
+      </>,
+      confirmText: t('Accept'),
+      onConfirm: finish,
+    })
+  }
   const save = () => {
     if (progressionStepInvalid) return
-    close()
     const sets = Math.max(1, Math.round(c.sets) || (cardio ? 1 : 3))
     // Only carry progression settings that differ from the inherited default, so a plan file
     // stays readable and "follow the routine" keeps meaning exactly that.
@@ -938,8 +1020,8 @@ function ExConfig({ ex, existing, onSave, onDelete, close, routine, initial }) {
     // was. Mode-independent — a heavy triple, a plank and a cardio interval all rest.
     const restSec = Math.max(0, Math.round(c.restSec) || 0)
     const withRest = restSec ? { restSec } : {}
-    if (cardio) onSave({ sets, min: Math.max(1, Math.round(c.min) || 20), speed: Math.max(0, c.speed || 8), ...withNote, ...withRest })
-    else if (mode === 'time') onSave({ sets, mode: 'time', sec: Math.max(1, Math.round(c.sec) || 45), weight: Math.max(0, c.weight || 0), ...flags, ...prog, ...withNote, ...withWarmups, ...withRest })
+    if (cardio) commit({ sets, min: Math.max(1, Math.round(c.min) || 20), speed: Math.max(0, c.speed || 8), ...withNote, ...withRest })
+    else if (mode === 'time') commit({ sets, mode: 'time', sec: Math.max(1, Math.round(c.sec) || 45), weight: Math.max(0, c.weight || 0), ...flags, ...prog, ...withNote, ...withWarmups, ...withRest })
     else {
       // A unilateral target is stored even: the split has to divide, and a typed 15 would
       // otherwise plan seven reps on one side and eight on the other, every session.
@@ -958,7 +1040,7 @@ function ExConfig({ ex, existing, onSave, onDelete, close, routine, initial }) {
       // Every set in this exercise becomes a drop-set/rest-pause (buildSets stamps the rows) —
       // decided here, in the plan, not re-decided live each time you train it.
       if (c.intensifier && c.intensifier.type) out.intensifier = c.intensifier
-      onSave(out)
+      commit(out)
     }
   }
   return <>
@@ -974,6 +1056,10 @@ function ExConfig({ ex, existing, onSave, onDelete, close, routine, initial }) {
         .map((s, i) => <span key={i} className="tag dim">{t(s)}</span>)}
     </div>
     {ex.desc && <div className="exnote">{ex.desc}</div>}
+    {/* A colour with no key is a riddle: say once, up front, what the marked fields mean. */}
+    <div className="small gfield-key" style={{ marginBottom: 14 }}>
+      {t('Fields in this colour belong to the exercise: every routine that uses it starts from them, and changing one here changes it everywhere. The rest are this routine’s own.')}
+    </div>
     {!cardio && <div style={{ marginBottom: 14 }}>
       <Segmented className="seg-range" value={mode} onChange={setMode}
         options={[{ value: 'reps', label: t('Reps') }, { value: 'time', label: t('Time') }]} />
@@ -992,7 +1078,8 @@ function ExConfig({ ex, existing, onSave, onDelete, close, routine, initial }) {
             rest-pause work set — so "Sets" has nothing left to mean and only invites a mismatch. */}
         {c.intensifier?.type !== 'restpause' &&
           <Stepper label={t('Sets')} value={c.sets} step={1} decimal={false} onChange={v => setC(x => ({ ...x, sets: v }))} />}
-        {!double && <Stepper label={t('Reps')} value={c.reps} step={perSide ? 2 : 1} decimal={false} onChange={v => setC(x => ({ ...x, reps: v }))} />}
+        {!double && <Stepper label={t('Reps')} value={c.reps} step={perSide ? 2 : 1} decimal={false}
+          className={gcls('reps')} onChange={v => setC(x => ({ ...x, reps: v }))} />}
         {/* On bodyweight work the weight stepper is the click #32 is about, so it is not here
             until there is a belt to describe — see the added-weight row below. */}
         {!bw && <Stepper label={t('Weight ({0})', st.unit)} value={c.weight} step={2.5} onChange={v => setC(x => ({ ...x, weight: v }))} />}
@@ -1023,18 +1110,18 @@ function ExConfig({ ex, existing, onSave, onDelete, close, routine, initial }) {
         and a cardio interval all rest — they just do not all want the same break. */}
     <div className="row cfgrow" style={{ marginBottom: 6 }}>
       <Stepper label={t('Rest (s)')} value={c.restSec || 0} step={15} decimal={false}
-        onChange={v => setC(x => ({ ...x, restSec: v }))} />
+        className={gcls('restSec')} onChange={v => setC(x => ({ ...x, restSec: v }))} />
     </div>
     <div className="small dim" style={{ marginBottom: 18 }}>
       {t('Rest after each set of this exercise. Leave at 0 to use your default rest timer.')}
     </div>
     {/* ---------- bodyweight + per side (issues #31/#32/#33) ---------- */}
     {!cardio && <div className="sect-b" style={{ marginBottom: 8 }}>
-      <Row icon="figureStrength" iconTint="var(--acc)" title={t('Bodyweight')}
+      <Row className={gcls('bodyweight')} icon="figureStrength" iconTint="var(--acc)" title={t('Bodyweight')}
         subtitle={bw ? t('No weight to enter — just log the reps.') : t('Ask for a weight on every set.')}>
         <Switch checked={bw} onChange={v => setC(x => ({ ...x, bodyweight: v, weight: v ? 0 : x.weight }))} />
       </Row>
-      {mode === 'reps' && <Row icon="shuffle" iconTint="var(--blue)" title={t('Reps per side')}
+      {mode === 'reps' && <Row className={gcls('side')} icon="shuffle" iconTint="var(--blue)" title={t('Reps per side')}
         subtitle={perSide ? t('You still log the total: {0} is {1} per side.', c.reps || 0, fmtNum(sideReps(c.reps))) : t('For lunges, single-arm rows and the like.')}>
         {/* Turning it on rounds the target up to an even number, since half of an odd
             total is a rep one side does not get. */}
@@ -1052,7 +1139,7 @@ function ExConfig({ ex, existing, onSave, onDelete, close, routine, initial }) {
     {bw && <>
       <div className="row cfgrow" style={{ marginBottom: 8 }}>
         <Stepper label={t('Added ({0})', st.unit)} value={c.weight || 0} step={2.5}
-          onChange={v => setC(x => ({ ...x, weight: v }))} />
+          className={gcls('weight')} onChange={v => setC(x => ({ ...x, weight: v }))} />
       </div>
       <div className="small dim" style={{ marginBottom: 18 }}>
         {t('For dips or pull-ups with a belt. Progression then follows the weight.')}
@@ -1061,7 +1148,7 @@ function ExConfig({ ex, existing, onSave, onDelete, close, routine, initial }) {
     {/* The rep ceiling only means something when there is no load to add instead. */}
     {mode === 'reps' && bw && !(c.weight > 0) && <div className="row cfgrow" style={{ marginBottom: 18 }}>
       <Stepper label={t('Top of the range')} value={c.repsMax || 0} step={1} decimal={false}
-        onChange={v => setC(x => ({ ...x, repsMax: v }))} />
+        className={gcls('repsMax')} onChange={v => setC(x => ({ ...x, repsMax: v }))} />
     </div>}
     {mode === 'reps' && bw && !(c.weight > 0) && <div className="small dim" style={{ marginTop: -10, marginBottom: 18 }}>
       {c.repsMax > 0
@@ -1071,7 +1158,7 @@ function ExConfig({ ex, existing, onSave, onDelete, close, routine, initial }) {
     {mode === 'reps' && <>
       <h4 className="sec">{t('Drop-set / rest-pause')}</h4>
       <div className="sect-b" style={{ marginBottom: 8 }}>
-        <SelectRow title={t('Intensifier')} sheetTitle={t('Intensifier')} value={c.intensifier?.type || ''}
+        <SelectRow className={gcls('intensifier')} title={t('Intensifier')} sheetTitle={t('Intensifier')} value={c.intensifier?.type || ''}
           onChange={v => setC(x => ({
             ...x,
             intensifier: !v ? undefined : v === 'dropset'
@@ -1105,7 +1192,7 @@ function ExConfig({ ex, existing, onSave, onDelete, close, routine, initial }) {
           : t('Every set becomes rest-pause: {0} reps to start, then {1} more split into short bursts, {2}s rest before each, roughly halving each time.', c.reps || 0, c.intensifier.totalReps, c.intensifier.restSec)}
       </div>}
     </>}
-    <ProgressionFields ex={ex} mode={mode} c={c} setC={setC} routine={routine} unit={st.unit} perSide={perSide} />
+    <ProgressionFields ex={ex} mode={mode} c={c} setC={setC} routine={routine} unit={st.unit} perSide={perSide} gcls={gcls} />
     <textarea className="input" rows={3} maxLength={500} style={{ marginBottom: 18 }}
       placeholder={t('Note (optional) — loading cues, "bar only then +1 plate/side each set", anything worth remembering here')}
       value={c.note || ''} onChange={e => setC(x => ({ ...x, note: e.target.value }))} />

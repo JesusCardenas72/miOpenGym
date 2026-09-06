@@ -193,6 +193,8 @@ export default {
   'Cardio logged': '유산소 기록됨',
   'Discard workout?': '운동을 버릴까요?',
   'The sets you logged in this session will be lost.': '이 세션에서 기록한 세트가 사라집니다.',
+  'Set {0} / {1}': '세트 {0} / {1}',
+  'Round {0} / {1}': '라운드 {0} / {1}',
   'Superset {0} / {1}': '슈퍼세트 {0} / {1}',
   'Exercise {0} / {1}': '운동 {0} / {1}',
   'Superset · do these back-to-back, rest when done': '슈퍼세트 · 연달아 수행하고, 전부 끝난 뒤 휴식',
