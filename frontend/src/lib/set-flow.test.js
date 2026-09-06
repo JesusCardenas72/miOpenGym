@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { supersetUnits } from './history.js'
-import { setSteps, stepIndexOf, roundsIn, firstUnfinishedRound } from './set-flow.js'
+import { setSteps, stepIndexOf, roundsIn, firstUnfinishedRound, neighbourUnitStep } from './set-flow.js'
 
 const sets = (n, done = 0) => Array.from({ length: n }, (_, i) => ({ w: 20, r: 5, done: i < done }))
 const ex = (n, done) => ({ id: '1', sets: sets(n, done) })
@@ -84,5 +84,40 @@ describe('firstUnfinishedRound', () => {
   })
   it('is the first round when there is nothing at all', () => {
     expect(firstUnfinishedRound([{ id: '1', sets: [] }], [0])).toBe(0)
+  })
+})
+
+describe('neighbourUnitStep', () => {
+  const session = () => {
+    const entries = [
+      { sets: [{ done: true }, { done: false }] },
+      { sets: [{ done: true }, { done: false }, { done: false }] },
+      { sets: [{ done: false }] },
+    ]
+    const units = [[0], [1], [2]]
+    return { entries, units, steps: setSteps(entries, units) }
+  }
+
+  it('goes to the group next door, not to the next set', () => {
+    const { entries, units, steps } = session()
+    // Group 0 has two screens; the one after it is group 1, five sets deep into the session.
+    expect(neighbourUnitStep(entries, units, steps, 0, 1)).toBe(stepIndexOf(steps, 1, 1))
+  })
+
+  it('opens that group on its first set still to be done', () => {
+    const { entries, units, steps } = session()
+    expect(steps[neighbourUnitStep(entries, units, steps, 0, 1)]).toEqual({ unit: 1, round: 1, rows: [{ entry: 1, set: 1 }] })
+  })
+
+  it('goes back to the group before, from wherever in this one you are', () => {
+    const { entries, units, steps } = session()
+    expect(steps[neighbourUnitStep(entries, units, steps, 2, -1)].unit).toBe(1)
+  })
+
+  it('has nothing on the far side of either end', () => {
+    const { entries, units, steps } = session()
+    expect(neighbourUnitStep(entries, units, steps, 0, -1)).toBe(null)
+    expect(neighbourUnitStep(entries, units, steps, 2, 1)).toBe(null)
+    expect(neighbourUnitStep(entries, units, steps, 1, 0)).toBe(null)
   })
 })

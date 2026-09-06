@@ -19,7 +19,7 @@ import { glyphOf } from '../lib/glyphs.js'
 import { isWarmupRow, isDropSet, isRestPauseSet, dropsOf, clustersOf, addDrop, addCluster, removeDropAt, removeClusterAt, setDropAt, setClusterAt, nextDropWeight, nextBurstReps } from '../lib/workout-model.js'
 import { canMoveActiveWorkoutUnit, moveActiveWorkoutUnit, moveActiveWorkoutUnitTo } from '../lib/active-workout-order.js'
 import WorkoutDock from '../components/WorkoutDock.jsx'
-import { setSteps, stepIndexOf, roundsIn, firstUnfinishedRound } from '../lib/set-flow.js'
+import { setSteps, stepIndexOf, roundsIn, firstUnfinishedRound, neighbourUnitStep } from '../lib/set-flow.js'
 import { workIndexOf, referenceSet, suggestionFor, extraSetsWanted } from '../lib/set-reference.js'
 import { swipeLock, rowOffset, rowArmed, navDirection } from '../lib/swipe.js'
 import { edgeOffset } from '../lib/slide.js'
@@ -532,11 +532,12 @@ function ActiveWorkout() {
     if (s.active?.entries?.[index]) s.active.cur = index
   })
 
-  /* Move one screen along the session: the next set of this exercise, or — at either end of it
-     — the first set of the exercise next door. One gesture therefore walks the whole workout
-     without ever having to aim at a particular exercise. */
-  const navigateStep = direction => {
-    const target = steps[stepIdx + direction]
+  /* Show one particular screen of the session, given its place in `steps`. Both ways in end
+     here: the Prev/Next buttons, which move one set at a time, and a swipe, which jumps a whole
+     exercise. Nothing here touches a timer — a set being held or a rest counting down belongs
+     to the exercise that started it, not to whatever is being looked at. */
+  const goToStep = index => {
+    const target = steps[index]
     if (!target) return
     const targetUnit = units[target.unit]
     if (!targetUnit?.length) return
@@ -549,6 +550,9 @@ function ActiveWorkout() {
       if (s.active?.entries?.[targetUnit[0]]) s.active.cur = targetUnit[0]
     })
   }
+  /** One set along, for the Prev/Next buttons: the next set of this exercise or the first of
+   *  the one next door. */
+  const navigateStep = direction => goToStep(stepIdx + direction)
   // One pointer gesture, two outcomes (see lib/swipe.js for which is which and why): dragging a
   // removable set row leftwards peels it open over a red delete track, and any other horizontal
   // drag pages between exercises. It is all handled here rather than on each row because the
@@ -586,15 +590,15 @@ function ActiveWorkout() {
       // on every move rather than once, so nothing is left highlighted behind the gesture.
       if (event.pointerType === 'mouse') window.getSelection?.()?.removeAllRanges()
       if (mode === 'nav') {
-        // Which set is being pulled in is settled once, on the axis lock: a neighbour that
-        // changed sides halfway through a drag would mean mounting the other one too.
+        // Which exercise is being pulled in is settled once, on the axis lock: a neighbour
+        // that changed sides halfway through a drag would mean mounting the other one too.
         start.dir = dx < 0 ? 1 : -1
-        start.target = steps[stepIdx + start.dir] ? stepIdx + start.dir : null
+        start.target = neighbourUnitStep(A.entries, units, steps, unitIdx, start.dir)
       }
     }
     if (start.mode === 'row') { setRowDrag({ ...start.row, dx }); return }
-    // Either the next set follows the finger, or — at the very start or end of the session —
-    // the current one gives a little and stops, so the end is felt rather than silent.
+    // Either the next exercise follows the finger, or — at the very first or last one of the
+    // session — the current one gives a little and stops, so the end is felt rather than silent.
     setUnitDrag({ dir: start.dir, target: start.target, dx: start.target == null ? edgeOffset(dx) : dx })
   }
   const finishSwipe = (event, commit) => {
@@ -615,7 +619,7 @@ function ActiveWorkout() {
       return
     }
     // Let go short of the threshold and it springs back: the deck animates the return.
-    if (start.target != null && navDirection(dx, dy) === start.dir) navigateStep(start.dir)
+    if (start.target != null && navDirection(dx, dy) === start.dir) goToStep(start.target)
   }
 
   /* A gesture has to end even when its pointerup never reaches this surface — a finger lifted

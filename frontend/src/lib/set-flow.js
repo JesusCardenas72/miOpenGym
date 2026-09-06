@@ -58,3 +58,21 @@ export function firstUnfinishedRound(entries, unit) {
   }
   return Math.max(0, rounds - 1)
 }
+
+/**
+ * Where a sideways swipe inside a session lands: the neighbouring **group**, not the next set.
+ *
+ * A swipe is for looking at what is coming up or going back over what was done, so it travels
+ * exercise by exercise — the set in progress and any rest counting down are left exactly where
+ * they were. Walking a group set by set is what the Prev/Next buttons are for.
+ *
+ * `dir` is +1 for the group to the right and -1 for the one to the left. Returns the index of
+ * the screen that opens that group — its first unfinished round, the same one it would open on
+ * from a tap in the dock — or null when there is nothing on that side.
+ */
+export function neighbourUnitStep(entries, units, steps, unitIdx, dir) {
+  const target = unitIdx + dir
+  if (!dir || !Array.isArray(units) || !units[target]) return null
+  const index = stepIndexOf(steps, target, firstUnfinishedRound(entries, units[target]))
+  return index >= 0 ? index : null
+}
