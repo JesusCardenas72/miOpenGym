@@ -140,6 +140,16 @@ async function toggleSet(index) {
   await act(async () => { checkbox.dispatchEvent(new dom.Event('click', { bubbles: true })) })
 }
 
+// Every set of the exercise is on the card, so counting checkboxes down the screen no longer
+// says which set was ticked. The rows carry the entry and the set they are, which does.
+async function toggleSetOf(entryIdx, setIdx) {
+  const row = container.querySelector('[data-swipe-row="' + entryIdx + '"][data-swipe-set="' + setIdx + '"]')
+  expect(row).toBeTruthy()
+  const checkbox = row.querySelector('[role="checkbox"]')
+  expect(checkbox).toBeTruthy()
+  await act(async () => { checkbox.dispatchEvent(new dom.Event('click', { bubbles: true })) })
+}
+
 async function pressProgression(index = 0) {
   const button = container.querySelectorAll('.progline')[index]
   expect(button).toBeTruthy()
@@ -294,8 +304,8 @@ describe('Workout set completion flow', () => {
       exercise('superset-b', [true, true, false], { sg: group }),
       exercise('next-exercise', [false, false, false]),
     ], 1)
-    // The round on screen is the last one: superset-a's third set is done, superset-b's is not.
-    await toggleSet(1)
+    // The one set of the group still to do: superset-a's third is done, superset-b's is not.
+    await toggleSetOf(1, 2)
 
     expect(mocks.topWeightSheet).toHaveBeenCalledWith(1)
     expect(mocks.S.active.cur).toBe(1)
@@ -567,7 +577,7 @@ describe('superset flow survives an exercise being removed mid-session', () => {
     expect(mocks.S.active.cur).toBe(1)
 
     // Partner closes the round (each still has a second set), which is what starts the rest.
-    await toggleSet(1)
+    await toggleSetOf(1, 0)
     expect(mocks.startRest).toHaveBeenCalledWith(90, expect.any(Number))
   })
 })
@@ -582,11 +592,11 @@ describe('superset actionable-set centring', () => {
 
     await rerenderAt(1)
 
-    // Only the round being worked is on screen, so that is the only row this exercise draws.
+    // Every set of the exercise is on the card; the first one still to do is the one centred.
     const rows = container.querySelector('[data-exidx="1"]').querySelectorAll('.setrow')
-    expect(rows).toHaveLength(1)
+    expect(rows).toHaveLength(3)
     expect(mocks.scrollCalls).toEqual([
-      { node: rows[0], options: { behavior: 'smooth', block: 'center' } },
+      { node: rows[1], options: { behavior: 'smooth', block: 'center' } },
     ])
   })
 
@@ -599,11 +609,11 @@ describe('superset actionable-set centring', () => {
 
     await rerenderAt(1)
 
-    // Only the round being worked is on screen, so that is the only row this exercise draws.
+    // Nothing left to do in it, so the last set — the one worth correcting — is centred.
     const rows = container.querySelector('[data-exidx="1"]').querySelectorAll('.setrow')
-    expect(rows).toHaveLength(1)
+    expect(rows).toHaveLength(2)
     expect(mocks.scrollCalls).toEqual([
-      { node: rows[0], options: { behavior: 'smooth', block: 'center' } },
+      { node: rows[1], options: { behavior: 'smooth', block: 'center' } },
     ])
   })
 

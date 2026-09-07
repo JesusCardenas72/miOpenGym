@@ -19,7 +19,6 @@ import { glyphOf } from '../lib/glyphs.js'
 import { isWarmupRow, isDropSet, isRestPauseSet, dropsOf, clustersOf, addDrop, addCluster, removeDropAt, removeClusterAt, setDropAt, setClusterAt, nextDropWeight, nextBurstReps } from '../lib/workout-model.js'
 import { canMoveActiveWorkoutUnit, moveActiveWorkoutUnit, moveActiveWorkoutUnitTo } from '../lib/active-workout-order.js'
 import WorkoutDock from '../components/WorkoutDock.jsx'
-import { setSteps, stepIndexOf, roundsIn, firstUnfinishedRound } from '../lib/set-flow.js'
 import { workIndexOf, referenceSet, suggestionFor, extraSetsWanted } from '../lib/set-reference.js'
 import { swipeLock, rowOffset, rowArmed, navDirection } from '../lib/swipe.js'
 import { edgeOffset } from '../lib/slide.js'
@@ -75,7 +74,7 @@ function Elapsed({ start }) {
 }
 
 /* ---------- one exercise block (reps: weight×reps · time: a held duration · cardio: duration+speed) ---------- */
-function ExerciseBlock({ entryIdx, compact, focusSet, onToggle, onField, onAddSet, onRemoveSet, onAddWarmup, onRemoveSetAt, onStartTimed, onPairPrev, onPairNext, onSetRowRef, onProgressionSettings, swipeSet, swipeDx = 0 }) {
+function ExerciseBlock({ entryIdx, compact, onToggle, onField, onAddSet, onRemoveSet, onAddWarmup, onRemoveSetAt, onStartTimed, onPairPrev, onPairNext, onSetRowRef, onProgressionSettings, onSwap, onRemove, swipeSet, swipeDx = 0 }) {
   const S = useStore(s => s.S)
   const update = useStore(s => s.update)
   const working = useUI(s => s.work)
@@ -193,6 +192,10 @@ function ExerciseBlock({ entryIdx, compact, focusSet, onToggle, onField, onAddSe
           style={entry.note ? { color: 'var(--acc)' } : undefined}
           onClick={() => exerciseNoteSheet(entryIdx)}><Icon name="pencil" /></button>
         <button className="iconbtn" aria-label={t('Details')} onClick={() => exerciseDetailSheet(ex)}><Icon name="info" /></button>
+        {onSwap && <button className="iconbtn" aria-label={t('Swap exercise')} title={t('Swap exercise')}
+          disabled={!!working} onClick={onSwap}><Icon name="shuffle" /></button>}
+        {onRemove && <button className="iconbtn danger" aria-label={t('Remove exercise')} title={t('Remove exercise')}
+          disabled={!!working} onClick={onRemove}><Icon name="trash" /></button>}
       </div>
     </div>
     {!compact && (onPairPrev || onPairNext) && <div className="row" style={{ gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
@@ -229,11 +232,6 @@ function ExerciseBlock({ entryIdx, compact, focusSet, onToggle, onField, onAddSe
       {/* the header carries the same eff3 sizing as the rows, or the labels drift off their columns */}
       <div className={'sethead' + (col3 ? ' eff3' : '')}><span className="n-sp" /><span className="w-sp">{col1.hd}</span>{col2 && <span className="r-sp">{col2.hd}</span>}{col3 && <span className="eff-sp">{col3.hd}</span>}{timed && <span className="ck-sp" />}<span className="ck-sp" /></div>
       {entry.sets.map((s, i) => {
-        /* One set to a screen: the rest of the block — the movement, its notes, what the plan
-           asked for — is the context around the set in front of you, and stays. The map still
-           runs over every set so the numbering below counts from the real list; a set that is
-           not the one being worked simply draws nothing. */
-        if (focusSet != null && i !== focusSet) return null
         const warm = isWarmupRow(s)
         const warmBefore = i > 0 && isWarmupRow(entry.sets[i - 1])
         const isFirstWarmup = warm && !warmBefore
@@ -365,18 +363,9 @@ function ActiveWorkout() {
   const unit = A.entries.length ? unitOf(units, cur) : []
   const unitIdx = units.findIndex(u => u === unit)
   const isSuperset = unit.length > 1
-  /* The session as a list of screens, one set each — a superset's linked sets share one (see
-     lib/set-flow.js). Which of them is showing is *not* in the store: it is a place in the
-     session, not part of the log, and reopening a workout on the set still to be done is the
-     right answer anyway. */
-  const steps = setSteps(A.entries, units)
-  const [focusRound, setFocusRound] = useState(() => firstUnfinishedRound(A.entries, unit))
-  const rounds = roundsIn(A.entries, unit)
-  const round = Math.min(Math.max(focusRound, 0), Math.max(0, rounds - 1))
-  const stepIdx = stepIndexOf(steps, unitIdx, round)
-  // Where a swipe or a Prev/Next press is taking the focus, carried across the exercise change
-  // it causes so the effect below does not immediately pull it somewhere else.
-  const askedRound = useRef(null)
+  /* One screen to an exercise, with every set of it listed down the card — a superset shows its
+     linked exercises together, since they are done back to back. Which screen is showing is the
+     session's own `cur`, so it survives a reload the way the rest of the log does. */
   // Superset flow: center the actionable row when completing a set moves to the partner or
   // back to the first exercise of the next round. Entry-bound maps keep repeated exercise IDs
   // distinct, while each rendered set index identifies the existing row within that entry.
@@ -449,15 +438,6 @@ function ActiveWorkout() {
 
   const total = A.entries.reduce((n, e) => n + e.sets.length, 0)
   const done = setsDoneActive(A)
-  /* Checking a set off — or unchecking one to correct it — moves the session on, and so does
-     landing on a different exercise (the superset flow, a tap on the dock). Either way the set
-     worth looking at is the first one still to be done. A swipe changes neither, so a deliberate
-     look back at earlier work stays where it was put until the session itself moves again. */
-  useEffect(() => {
-    const asked = askedRound.current
-    askedRound.current = null
-    setFocusRound(asked != null ? asked : firstUnfinishedRound(A.entries, unitOf(supersetUnits(A.entries), cur)))
-  }, [unitIdx, done])
 
   const mutEntry = (idx, fn) => update(s => { fn(s.active.entries[idx]) }, true)
   // Clearing an optional field drops the key rather than storing null, so a set only carries
@@ -479,19 +459,12 @@ function ActiveWorkout() {
     else e.sets.push({ w: l ? l.w : 0, r: l ? l.r : e.target.reps, done: false })
   })
   const removeSet = idx => mutEntry(idx, e => { if (e.sets.length > 1) e.sets.pop() })
-  /* A warm-up goes in ahead of the work sets, so every set after it shifts one along — and one
-     set to a screen, that would silently move the screen you are on to the set before the one
-     you were looking at. Land on the warm-up itself instead: it is the set you just asked for,
-     and the one you are about to do. */
-  const addWarmup = idx => {
-    mutEntry(idx, e => {
-      const m = modeOf({ ...(e.target || {}), id: e.id })
-      e.sets = insertWarmupRow(e.sets, m, e.target || {}, defaultIncrement(e.id, S.unit))
-    })
-    const sets = useStore.getState().S.active?.entries?.[idx]?.sets || []
-    const firstWork = sets.findIndex(row => !isWarmupRow(row))
-    setFocusRound(Math.max(0, (firstWork === -1 ? sets.length : firstWork) - 1))
-  }
+  // A warm-up goes in ahead of the work sets, which shifts every set after it one along — the
+  // rows are all on the card together, so that reads as the insertion it is.
+  const addWarmup = idx => mutEntry(idx, e => {
+    const m = modeOf({ ...(e.target || {}), id: e.id })
+    e.sets = insertWarmupRow(e.sets, m, e.target || {}, defaultIncrement(e.id, S.unit))
+  })
   const removeSetAt = (idx, i) => mutEntry(idx, e => { e.sets = removeRowAt(e.sets, i) })
   const pairAt = (first, second) => update(s => {
     s.active.entries = pairAdjacent(s.active.entries, first, second)
@@ -532,19 +505,11 @@ function ActiveWorkout() {
     if (s.active?.entries?.[index]) s.active.cur = index
   })
 
-  /* Move one screen along the session: the next set of this exercise, or — at either end of it
-     — the first set of the exercise next door. One gesture therefore walks the whole workout
-     without ever having to aim at a particular exercise. */
-  const navigateStep = direction => {
-    const target = steps[stepIdx + direction]
-    if (!target) return
-    const targetUnit = units[target.unit]
+  /* Move one screen along the session: the exercise next door, or the whole superset when that
+     is what sits there. Landing on a superset lands on its first exercise, where its work starts. */
+  const navigateUnit = direction => {
+    const targetUnit = units[unitIdx + direction]
     if (!targetUnit?.length) return
-    if (target.unit === unitIdx) { setFocusRound(target.round); return }
-    // A different exercise: the round has to survive the store update that moves `cur`, or the
-    // effect that follows it would reset the focus to wherever that exercise was left.
-    askedRound.current = target.round
-    setFocusRound(target.round)
     update(s => {
       if (s.active?.entries?.[targetUnit[0]]) s.active.cur = targetUnit[0]
     })
@@ -564,8 +529,11 @@ function ActiveWorkout() {
     const row = rowEl && !event.target.closest?.(SWIPE_ROW_IGNORED_TARGETS)
       ? { entry: Number(rowEl.dataset.swipeRow), set: Number(rowEl.dataset.swipeSet) }
       : null
-    if (!row && event.target.closest?.(SWIPE_IGNORED_TARGETS)) return
+    // A fresh press makes any pending swallow stale, so it is dropped before this press can be
+    // turned away below — otherwise a tap on a stepper's field, right after a swipe that
+    // committed and was followed by no click of its own, would be eaten by that old gesture.
     swipeClick.current = false
+    if (!row && event.target.closest?.(SWIPE_IGNORED_TARGETS)) return
     swipe.current = { id: event.pointerId, x: event.clientX, y: event.clientY, row, mode: null }
     // Capture keeps the moves coming when the finger wanders off the card. It throws for a
     // pointer the browser no longer holds, which must not leave a gesture half-started.
@@ -586,15 +554,15 @@ function ActiveWorkout() {
       // on every move rather than once, so nothing is left highlighted behind the gesture.
       if (event.pointerType === 'mouse') window.getSelection?.()?.removeAllRanges()
       if (mode === 'nav') {
-        // Which set is being pulled in is settled once, on the axis lock: a neighbour that
+        // Which exercise is being pulled in is settled once, on the axis lock: a neighbour that
         // changed sides halfway through a drag would mean mounting the other one too.
         start.dir = dx < 0 ? 1 : -1
-        start.target = steps[stepIdx + start.dir] ? stepIdx + start.dir : null
+        start.target = units[unitIdx + start.dir] ? unitIdx + start.dir : null
       }
     }
     if (start.mode === 'row') { setRowDrag({ ...start.row, dx }); return }
-    // Either the next set follows the finger, or — at the very start or end of the session —
-    // the current one gives a little and stops, so the end is felt rather than silent.
+    // Either the next exercise follows the finger, or — at the very start or end of the
+    // session — the current one gives a little and stops, so the end is felt rather than silent.
     setUnitDrag({ dir: start.dir, target: start.target, dx: start.target == null ? edgeOffset(dx) : dx })
   }
   const finishSwipe = (event, commit) => {
@@ -615,7 +583,7 @@ function ActiveWorkout() {
       return
     }
     // Let go short of the threshold and it springs back: the deck animates the return.
-    if (start.target != null && navDirection(dx, dy) === start.dir) navigateStep(start.dir)
+    if (start.target != null && navDirection(dx, dy) === start.dir) navigateUnit(start.dir)
   }
 
   /* A gesture has to end even when its pointerup never reaches this surface — a finger lifted
@@ -831,18 +799,18 @@ function ActiveWorkout() {
     }
   }, [])
 
-  /* One screen of the session — a single set, or the linked sets of one superset round — as a
-     layer of the sliding deck. `preview` marks the neighbour being dragged into view: the deck
-     renders it for real so the two screens travel together, but it is inert, so it takes no
-     refs (the superset flow's scroll targets belong to the set you are actually working) and
-     its controls are wired to nothing. */
-  const renderStep = (index, preview) => {
-    const step = steps[index]
-    const members = step && units[step.unit]
+  /* One screen of the session — an exercise with every one of its sets, or the linked exercises
+     of one superset — as a layer of the sliding deck. `preview` marks the neighbour being dragged
+     into view: the deck renders it for real so the two screens travel together, but it is inert,
+     so it takes no refs (the superset flow's scroll targets belong to the exercise you are
+     actually working) and its controls are wired to nothing. */
+  const renderUnit = (index, preview) => {
+    const members = units[index]
     if (!members || !members.length) return null
-    const block = (idx, extra) => <ExerciseBlock entryIdx={idx} focusSet={step.round}
+    const block = (idx, extra) => <ExerciseBlock entryIdx={idx}
       swipeSet={!preview && rowDrag?.entry === idx ? rowDrag.set : null} swipeDx={rowDrag?.dx || 0}
       onToggle={i => toggle(idx, i)} onField={(i, f, v) => setField(idx, i, f, v)} onAddSet={() => addSet(idx)} onRemoveSet={() => removeSet(idx)} onAddWarmup={() => addWarmup(idx)} onRemoveSetAt={i => removeSetAt(idx, i)} onStartTimed={i => startTimed(idx, i)} onProgressionSettings={() => openProgressionSettings(idx)}
+      onSwap={preview ? undefined : () => swapActiveWorkoutExercise(idx)} onRemove={preview ? undefined : () => confirmRemoveExercise(idx)}
       {...extra} />
     if (members.length > 1) return (
       <div className="ss-card">
@@ -867,25 +835,33 @@ function ActiveWorkout() {
   }
 
   return <div className="narrow">
-    <div className="hdr">
-      <button className="iconbtn" aria-label={t('Discard')} onClick={() => confirmSheet({ title: t('Discard workout?'), message: t('The sets you logged in this session will be lost.'), confirmText: t('Discard'), danger: true, onConfirm: () => { update(s => { s.active = null }); stopRest(); stopWork(); nav('/home') } })}><Icon name="xmark" /></button>
-      <div style={{ textAlign: 'center' }}><div style={{ fontWeight: 600 }}>{A.name}</div><div className="sub">{A.backfill ? fmtDate(A.d, true) : <Elapsed start={A.start} />} · {t('{0} sets', done + '/' + total)}</div></div>
-      <button className="iconbtn" style={{ color: 'var(--acc)' }} aria-label={t('Finish')} onClick={finishWorkout}><Icon name="check" /></button>
+    {/* Pinned for the whole session. Mid-workout you are scrolled deep into a list of sets,
+        and the session name, its progress, the running order and where you are in it are
+        exactly the things that have to stay on screen while you scroll. */}
+    <div className="wtop">
+      <div className="hdr">
+        <button className="iconbtn" aria-label={t('Discard')} onClick={() => confirmSheet({ title: t('Discard workout?'), message: t('The sets you logged in this session will be lost.'), confirmText: t('Discard'), danger: true, onConfirm: () => { update(s => { s.active = null }); stopRest(); stopWork(); nav('/home') } })}><Icon name="xmark" /></button>
+        <div style={{ textAlign: 'center' }}><div style={{ fontWeight: 600 }}>{A.name}</div><div className="sub">{A.backfill ? fmtDate(A.d, true) : <Elapsed start={A.start} />} · {t('{0} sets', done + '/' + total)}</div></div>
+        <button className="iconbtn" style={{ color: 'var(--acc)' }} aria-label={t('Finish')} onClick={finishWorkout}><Icon name="check" /></button>
+      </div>
+      <div className="wprog"><i style={{ width: (total ? done / total * 100 : 0) + '%' }} /></div>
+      {/* The running order at a glance: tap a thumbnail to jump, press and hold one to drag its
+          exercise (or its whole superset capsule) somewhere else in the session. The buttons
+          below do the same two things without a pointer, so nothing here is the only way in. */}
+      <WorkoutDock entries={A.entries} cur={cur} disabled={!!work}
+        onSelect={selectExercise} onReorder={reorderUnitTo} onAdd={addExercise} />
+      {A.backfill && <div className="muted small" style={{ marginBottom: 8 }}>{t('Logging a past workout — no rest timers.')}</div>}
+      {!!A.entries.length && <div className="muted small" data-testid="workout-position" style={{ marginBottom: 6 }}>
+        {isSuperset ? t('Superset {0} / {1}', unitIdx + 1, units.length) : t('Exercise {0} / {1}', unitIdx + 1, units.length)}
+      </div>}
     </div>
-    <div className="wprog"><i style={{ width: (total ? done / total * 100 : 0) + '%' }} /></div>
-    {/* The running order at a glance: tap a thumbnail to jump, press and hold one to drag its
-        exercise (or its whole superset capsule) somewhere else in the session. The buttons
-        below do the same two things without a pointer, so nothing here is the only way in. */}
-    <WorkoutDock entries={A.entries} cur={cur} disabled={!!work}
-      onSelect={selectExercise} onReorder={reorderUnitTo} onAdd={addExercise} />
-    {A.backfill && <div className="muted small" style={{ marginBottom: 8 }}>{t('Logging a past workout — no rest timers.')}</div>}
 
     {A.entries.length ? <>
-      <div className="muted small" data-testid="workout-position" style={{ marginBottom: 6 }}>
-        {isSuperset ? t('Superset {0} / {1}', unitIdx + 1, units.length) : t('Exercise {0} / {1}', unitIdx + 1, units.length)}
-        {rounds > 0 && ' · ' + (isSuperset ? t('Round {0} / {1}', round + 1, rounds) : t('Set {0} / {1}', round + 1, rounds))}
-      </div>
-      <div className="workout-swipe-surface" data-testid="workout-swipe-surface" ref={swipeSurface}
+      {/* `data-owns-swipe` keeps the app-level ScreenSlider off this subtree. Both take the
+          pointer on the same pointerdown, and the outer one runs last, so its capture replaced
+          this one and every move went there instead — the gesture below never saw a single
+          one. See the same attribute in components/ScreenSlider.jsx. */}
+      <div className="workout-swipe-surface" data-owns-swipe data-testid="workout-swipe-surface" ref={swipeSurface}
         onPointerDown={onSwipePointerDown}
         onPointerMove={onSwipePointerMove}
         onPointerUp={event => finishSwipe(event, true)}
@@ -899,15 +875,15 @@ function ActiveWorkout() {
           event.preventDefault()
           event.stopPropagation()
         }}>
-      <SlideDeck current={stepIdx} peek={unitDrag?.target ?? null} dir={unitDrag?.dir ?? 0} dx={unitDrag?.dx ?? 0}
-        directionOf={(from, to) => (to > from ? 1 : -1)} render={renderStep} />
+      <SlideDeck current={unitIdx} peek={unitDrag?.target ?? null} dir={unitDrag?.dir ?? 0} dx={unitDrag?.dx ?? 0}
+        directionOf={(from, to) => (to > from ? 1 : -1)} render={renderUnit} />
       </div>
     </> : <div className="empty"><div className="ico"><Icon name="shuffle" /></div>{t('Freestyle workout — add your first exercise.')}</div>}
 
     <div style={{ height: 12 }} />
     <div className="row">
-      <Button icon="chevronLeft" disabled={stepIdx <= 0} onClick={() => navigateStep(-1)}>{t('Prev')}</Button>
-      <Button trailingIcon="chevronRight" disabled={stepIdx < 0 || stepIdx >= steps.length - 1} onClick={() => navigateStep(1)}>{t('Next')}</Button>
+      <Button icon="chevronLeft" disabled={unitIdx <= 0} onClick={() => navigateUnit(-1)}>{t('Prev')}</Button>
+      <Button trailingIcon="chevronRight" disabled={unitIdx < 0 || unitIdx >= units.length - 1} onClick={() => navigateUnit(1)}>{t('Next')}</Button>
     </div>
     <div style={{ height: 10 }} />
     <Button onClick={addExercise} icon="plus">{t('Add exercise')}</Button>

@@ -18,7 +18,14 @@ import SlideDeck from './SlideDeck.jsx'
 
 // Places a horizontal drag already means something else. Anything that actually scrolls
 // sideways is found at run time instead of listed here, so a new strip needs no edit.
-const IGNORED_TARGETS = '.sld,input[type="range"],[data-swipe-ignore]'
+//
+// `[data-owns-swipe]` marks a subtree that runs a horizontal gesture of its own — the workout's
+// set-by-set deck. Those have to be left alone outright, not merely lose the race: the capture
+// taken below replaces the one the inner surface just took for the same pointer, so every later
+// move for that gesture is delivered to *this* element instead. The inner surface would see a
+// `lostpointercapture` and no move at all, which is exactly what stopped the workout paging
+// between sets with a finger.
+const IGNORED_TARGETS = '.sld,input[type="range"],[data-swipe-ignore],[data-owns-swipe]'
 
 function inSideScroller(target, root) {
   for (let el = target; el && el !== root; el = el.parentElement) {
@@ -54,8 +61,12 @@ export default function ScreenSlider({ render }) {
     // touch was cancelled without telling us — would otherwise leave this surface refusing
     // every later drag for as long as the page stayed open.
     if (gesture.current) { releaseCapture(gesture.current.id); gesture.current = null; setDrag(null) }
-    if (event.target.closest?.(IGNORED_TARGETS) || inSideScroller(event.target, event.currentTarget)) return
+    // A fresh press makes any pending swallow stale, so it is dropped before this press can be
+    // turned away below. A touch swipe is followed by no click at all, so the flag a committed
+    // one leaves behind would otherwise sit there and eat the first tap that lands somewhere
+    // this handler bails out of — a button inside the workout's own swipe surface, say.
     swallowClick.current = false
+    if (event.target.closest?.(IGNORED_TARGETS) || inSideScroller(event.target, event.currentTarget)) return
     gesture.current = { id: event.pointerId, x: event.clientX, y: event.clientY, mode: null }
     // Capture keeps the moves coming when the finger wanders off the card. It throws for a
     // pointer the browser no longer holds, which must not leave a gesture half-started.
