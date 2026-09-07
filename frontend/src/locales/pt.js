@@ -397,6 +397,7 @@ export default {
   'Remove from routine': 'Remover da rotina',
   'Minimize': 'Minimizar',
   'Expand': 'Ampliar',
+  'Hide': 'Ocultar',
   'Exercise animations': 'Animações dos exercícios',
   'Full': 'Grande',
   'Small': 'Pequena',

@@ -397,6 +397,7 @@ export default {
   'Remove from routine': 'रूटीन से हटाएं',
   'Minimize': 'छोटा करें',
   'Expand': 'बड़ा करें',
+  'Hide': 'छिपाएँ',
   'Exercise animations': 'व्यायाम एनिमेशन',
   'Full': 'पूर्ण',
   'Small': 'छोटा',

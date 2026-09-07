@@ -851,8 +851,16 @@ function ActiveWorkout() {
       <WorkoutDock entries={A.entries} cur={cur} disabled={!!work}
         onSelect={selectExercise} onReorder={reorderUnitTo} onAdd={addExercise} />
       {A.backfill && <div className="muted small" style={{ marginBottom: 8 }}>{t('Logging a past workout — no rest timers.')}</div>}
-      {!!A.entries.length && <div className="muted small" data-testid="workout-position" style={{ marginBottom: 6 }}>
-        {isSuperset ? t('Superset {0} / {1}', unitIdx + 1, units.length) : t('Exercise {0} / {1}', unitIdx + 1, units.length)}
+      {!!A.entries.length && <div className="row" style={{ gap: 6, marginBottom: 6 }}>
+        <span className="muted small" data-testid="workout-position">
+          {isSuperset ? t('Superset {0} / {1}', unitIdx + 1, units.length) : t('Exercise {0} / {1}', unitIdx + 1, units.length)}
+        </span>
+        {/* When the animation is hidden (Media's toggle stepped it to 'off'), the only way back
+            lives here beside the position label, out of the way of the sets. */}
+        {S.gifSize === 'off' && <button className="giftoggle inline" data-testid="show-media"
+          onClick={() => update(s => { s.gifSize = 'full' })}>
+          <Icon name="expand" />{t('Expand')}
+        </button>}
       </div>}
     </div>
 

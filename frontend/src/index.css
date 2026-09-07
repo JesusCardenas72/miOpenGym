@@ -700,6 +700,15 @@ h4.sec{
 .exmedia .gifhint{right:9px}
 .exmedia .giftoggle{left:9px}
 .exmedia .gifhint .icn,.exmedia .giftoggle .icn{font-size:13px}
+/* the "Expand" chip that brings a hidden animation back, sitting beside the exercise
+   number — not overlaid on media, so it carries its own (non-absolute) styling */
+.giftoggle.inline{
+  display:inline-flex;align-items:center;gap:4px;
+  background:var(--acc-soft);color:var(--acc);border-radius:99px;padding:3px 10px;
+  font-size:12px;font-weight:500;
+}
+.giftoggle.inline:active{transform:scale(.94)}
+.giftoggle.inline .icn{font-size:13px}
 /* superset: both exercises are on screen together, so the animations have to give way —
    at 180px you had to scroll a full screen between two exercises done back-to-back */
 .exmedia.compact img{height:120px}

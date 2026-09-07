@@ -397,6 +397,7 @@ export default {
   'Remove from routine': '从计划中移除',
   'Minimize': '缩小',
   'Expand': '放大',
+  'Hide': '隐藏',
   'Exercise animations': '动作动画',
   'Full': '完整',
   'Small': '小',

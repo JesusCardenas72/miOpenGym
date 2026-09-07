@@ -397,6 +397,7 @@ export default {
   'Remove from routine': 'Rutinden çıkar',
   'Minimize': 'Küçült',
   'Expand': 'Büyüt',
+  'Hide': 'Gizle',
   'Exercise animations': 'Egzersiz animasyonları',
   'Full': 'Tam',
   'Small': 'Küçük',

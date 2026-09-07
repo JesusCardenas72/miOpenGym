@@ -403,6 +403,7 @@ export default {
   'Remove from routine': 'ลบออกจากรูทีน',
   'Minimize': 'ย่อ',
   'Expand': 'ขยาย',
+  'Hide': 'ซ่อน',
   'Exercise animations': 'ภาพเคลื่อนไหวท่าออกกำลังกาย',
   'Full': 'เต็ม',
   'Small': 'เล็ก',

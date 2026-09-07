@@ -400,6 +400,7 @@ export default {
   'Remove from routine': 'Quitar de la rutina',
   'Minimize': 'Minimizar',
   'Expand': 'Ampliar',
+  'Hide': 'Ocultar',
   'Exercise animations': 'Animaciones de los ejercicios',
   'Full': 'Completa',
   'Small': 'Pequeña',
