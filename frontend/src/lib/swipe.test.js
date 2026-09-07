@@ -13,12 +13,12 @@ describe('swipeLock', () => {
     expect(swipeLock({ dx: 4, dy: 40, row: true })).toBe('none')
     expect(swipeLock({ dx: -4, dy: -40, row: null })).toBe('none')
   })
-  it('peels a set row open only when the drag runs left from a removable row', () => {
-    expect(swipeLock({ dx: -60, dy: 0, row: { entry: 0, set: 1 } })).toBe('row')
-    // rightwards on a row is not a delete — it pages forward like anywhere else
-    expect(swipeLock({ dx: 60, dy: 0, row: { entry: 0, set: 1 } })).toBe('nav')
+  it('peels a set row open only when the drag runs right from a removable row', () => {
+    expect(swipeLock({ dx: 60, dy: 0, row: { entry: 0, set: 1 } })).toBe('row')
+    // leftwards on a row is not a delete — it pages forward like anywhere else
+    expect(swipeLock({ dx: -60, dy: 0, row: { entry: 0, set: 1 } })).toBe('nav')
     // the last remaining set is not removable, so the caller passes no row at all
-    expect(swipeLock({ dx: -60, dy: 0, row: null })).toBe('nav')
+    expect(swipeLock({ dx: 60, dy: 0, row: null })).toBe('nav')
   })
   it('pages between exercises anywhere else', () => {
     expect(swipeLock({ dx: -60, dy: 0, row: null })).toBe('nav')
@@ -31,18 +31,18 @@ describe('swipeLock', () => {
 })
 
 describe('rowOffset / rowArmed', () => {
-  it('follows the finger leftwards only', () => {
-    expect(rowOffset(-40)).toBe(-40)
-    expect(rowOffset(40)).toBe(0)
+  it('follows the finger rightwards only', () => {
+    expect(rowOffset(40)).toBe(40)
+    expect(rowOffset(-40)).toBe(0)
   })
   it('stops at the end of the track', () => {
-    expect(rowOffset(-9999)).toBe(-ROW_MAX_OFFSET)
+    expect(rowOffset(9999)).toBe(ROW_MAX_OFFSET)
   })
   it('arms the delete once the row is pulled past the threshold', () => {
-    expect(rowArmed(-(ROW_DELETE_DISTANCE - 1))).toBe(false)
-    expect(rowArmed(-ROW_DELETE_DISTANCE)).toBe(true)
-    expect(rowArmed(-9999)).toBe(true)
-    expect(rowArmed(9999)).toBe(false)
+    expect(rowArmed(ROW_DELETE_DISTANCE - 1)).toBe(false)
+    expect(rowArmed(ROW_DELETE_DISTANCE)).toBe(true)
+    expect(rowArmed(9999)).toBe(true)
+    expect(rowArmed(-9999)).toBe(false)
   })
 })
 

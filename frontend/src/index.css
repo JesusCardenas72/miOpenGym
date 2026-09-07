@@ -724,7 +724,7 @@ h4.sec{
 }
 .setswipe-track{
   position:absolute;inset:0;z-index:0;border-radius:8px;
-  display:flex;align-items:center;justify-content:flex-end;padding-right:14px;
+  display:flex;align-items:center;justify-content:flex-start;padding-left:14px;
   background:color-mix(in srgb,var(--red) 45%,transparent);color:#fff;font-size:17px;
   transition:background var(--fast);
 }

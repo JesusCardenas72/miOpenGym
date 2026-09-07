@@ -246,7 +246,7 @@ function ExerciseBlock({ entryIdx, compact, onToggle, onField, onAddSet, onRemov
         return <div key={i}>
           {isFirstWarmup && <div className="setph">{t('Warm-up')}</div>}
           {!warm && warmBefore && <div className="setsep" />}
-          {/* Swipe a row left and it slides off its own red delete track (the same removal the
+          {/* Swipe a row right and it slides off its own red delete track (the same removal the
               warm-up rows' × button does). The track is only mounted while that row is being
               dragged, so a resting list stays exactly the markup it always was. */}
           <div className={'setswipe' + (dragging ? ' dragging' : '')}>
@@ -515,7 +515,7 @@ function ActiveWorkout() {
     })
   }
   // One pointer gesture, two outcomes (see lib/swipe.js for which is which and why): dragging a
-  // removable set row leftwards peels it open over a red delete track, and any other horizontal
+  // removable set row rightwards peels it open over a red delete track, and any other horizontal
   // drag pages between exercises. It is all handled here rather than on each row because the
   // surface takes the pointer capture, so a row would never see the moves itself.
   const onSwipePointerDown = event => {

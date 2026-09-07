@@ -88,40 +88,41 @@ afterEach(() => {
 describe('swipe a set row away', () => {
   it('deletes the swiped row once it has been pulled past the threshold', () => {
     renderWorkout([entry('1001', 3)])
-    drag(rows()[0].querySelector('.n'), -ROW_DELETE_DISTANCE)
+    drag(rows()[0].querySelector('.n'), ROW_DELETE_DISTANCE)
     expect(activeSets().map(s => s.w)).toEqual([21, 22])
   })
 
   it('springs back without deleting when the drag stops short', () => {
     renderWorkout([entry('1001', 3)])
-    drag(rows()[0].querySelector('.n'), -(ROW_DELETE_DISTANCE - 10))
+    drag(rows()[0].querySelector('.n'), ROW_DELETE_DISTANCE - 10)
     expect(activeSets().map(s => s.w)).toEqual([20, 21, 22])
   })
 
   it('shows a red delete track under the row while it is being dragged, and clears it after', () => {
     renderWorkout([entry('1001', 3)])
-    drag(rows()[0].querySelector('.n'), -40, 0, { release: false })
+    drag(rows()[0].querySelector('.n'), 40, 0, { release: false })
     const track = container.querySelector('.setswipe-track')
     expect(track).toBeTruthy()
     expect(track.className).not.toContain('armed')
-    expect(rows()[0].style.transform).toBe('translateX(-40px)')
-    act(() => pointer('pointermove', surface(), 200 - ROW_DELETE_DISTANCE, 300))
+    expect(rows()[0].style.transform).toBe('translateX(40px)')
+    act(() => pointer('pointermove', surface(), 200 + ROW_DELETE_DISTANCE, 300))
     expect(container.querySelector('.setswipe-track').className).toContain('armed')
-    act(() => pointer('pointerup', surface(), 200 - ROW_DELETE_DISTANCE, 300))
+    act(() => pointer('pointerup', surface(), 200 + ROW_DELETE_DISTANCE, 300))
     expect(container.querySelector('.setswipe-track')).toBe(null)
   })
 
   it('cancelling the gesture leaves the set alone', () => {
     renderWorkout([entry('1001', 3)])
     act(() => pointer('pointerdown', rows()[0].querySelector('.n'), 200, 300))
-    act(() => pointer('pointermove', surface(), 200 - ROW_DELETE_DISTANCE, 300))
-    act(() => pointer('pointercancel', surface(), 200 - ROW_DELETE_DISTANCE, 300))
+    act(() => pointer('pointermove', surface(), 200 + ROW_DELETE_DISTANCE, 300))
+    act(() => pointer('pointercancel', surface(), 200 + ROW_DELETE_DISTANCE, 300))
     expect(activeSets()).toHaveLength(3)
     expect(container.querySelector('.setswipe-track')).toBe(null)
   })
 
   it('leaves the last remaining set alone — that swipe pages instead', () => {
     renderWorkout([entry('1001', 1), entry('1002', 2)])
+    // The lone set is not removable, so this swipe never peels a delete track; it pages.
     drag(rows()[0].querySelector('.n'), -ROW_DELETE_DISTANCE)
     expect(useStore.getState().S.active.entries[0].sets).toHaveLength(1)
     expect(curIdx()).toBe(1) // the row could not be deleted, so the drag paged instead
@@ -179,13 +180,13 @@ describe('swipe between exercises', () => {
     expect(where()).toBe('Exercise 1 / 2')
   })
 
-  // Leftwards on a removable row belongs to the delete track, so a row can only be paged
-  // backwards — the space around it pages either way.
-  it('pages back even when the drag starts on a set row', () => {
-    renderWorkout([entry('1001', 3), entry('1002', 3)], 1)
-    drag(rows()[0].querySelector('.n'), SWIPE_MIN_DISTANCE)
-    expect(where()).toBe('Exercise 1 / 2')
-    expect(activeSets()).toHaveLength(3)
+  // Rightwards on a removable row belongs to the delete track, so a row can only be paged
+  // forwards — the space around it pages either way.
+  it('pages forward even when the drag starts on a set row', () => {
+    renderWorkout([entry('1001', 3), entry('1002', 3)], 0)
+    drag(rows()[0].querySelector('.n'), -SWIPE_MIN_DISTANCE)
+    expect(where()).toBe('Exercise 2 / 2')
+    expect(useStore.getState().S.active.entries[0].sets).toHaveLength(3)
   })
 })
 
