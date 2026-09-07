@@ -229,6 +229,11 @@ function ExerciseBlock({ entryIdx, compact, onToggle, onField, onAddSet, onRemov
       <span><strong>{t(guidance.policyLabel)}</strong> · {t(...guidance.why)}</span>
     </button>}
     <div className="card" style={{ marginTop: 10, marginBottom: 0 }}>
+      {/* Warm-up sets seed the ramp to the work sets, so the button to add one sits at the top
+          of the list, above the column legends — not down in the footer with Add/Remove set. */}
+      <div className="row" style={{ marginBottom: 8 }}>
+        <Button size="sm" icon="flame" onClick={onAddWarmup}>{t('Add warm-up set')}</Button>
+      </div>
       {/* the header carries the same eff3 sizing as the rows, or the labels drift off their columns */}
       <div className={'sethead' + (col3 ? ' eff3' : '')}><span className="n-sp" /><span className="w-sp">{col1.hd}</span>{col2 && <span className="r-sp">{col2.hd}</span>}{col3 && <span className="eff-sp">{col3.hd}</span>}{timed && <span className="ck-sp" />}<span className="ck-sp" /></div>
       {entry.sets.map((s, i) => {
@@ -317,7 +322,6 @@ function ExerciseBlock({ entryIdx, compact, onToggle, onField, onAddSet, onRemov
       </div>}
       <div style={{ height: 8 }} />
       <div className="row" style={{ flexWrap: 'wrap' }}>
-        <Button size="sm" icon="flame" onClick={onAddWarmup}>{t('Add warm-up set')}</Button>
         <Button size="sm" icon="minus" disabled={entry.sets.length <= 1} onClick={onRemoveSet}>{t('Remove set')}</Button>
         <Button size="sm" icon="plus" onClick={onAddSet}>{t('Add set')}</Button>
       </div>
