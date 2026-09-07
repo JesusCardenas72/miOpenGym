@@ -172,6 +172,7 @@ export default {
   'Weights bumped to {0}': 'Pesos subidos a {0}',
   'Remove set': 'Quitar serie',
   'Warm-up': 'Calentamiento',
+  'Working sets': 'Series efectivas',
   'Add warm-up set': 'Añadir serie de calentamiento',
   'Add set': 'Añadir serie',
   '+ Drop': '+ Bajada',

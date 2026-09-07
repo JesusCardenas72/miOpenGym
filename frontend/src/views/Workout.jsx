@@ -250,7 +250,9 @@ function ExerciseBlock({ entryIdx, compact, onToggle, onField, onAddSet, onRemov
         const armed = dragging && rowArmed(swipeDx)
         return <div key={i}>
           {isFirstWarmup && <div className="setph">{t('Warm-up')}</div>}
-          {!warm && warmBefore && <div className="setsep" />}
+          {/* Mirror of the warm-up header: where the warm-ups give way to the work sets, the
+              divider carries its own label instead of being a bare line. */}
+          {!warm && warmBefore && <div className="setph">{t('Working sets')}</div>}
           {/* Swipe a row right and it slides off its own red delete track (the same removal the
               warm-up rows' × button does). The track is only mounted while that row is being
               dragged, so a resting list stays exactly the markup it always was. */}
