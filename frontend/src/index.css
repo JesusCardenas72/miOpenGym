@@ -219,6 +219,8 @@ body.resting .app{padding-bottom:calc(250px + var(--sab))}
 .iconbtn::before,.chip::before,.seg button::before,.helpbtn::before{content:'';position:absolute;inset:-6px}
 .seg button::before{inset:-6px 0}
 .iconbtn.on-ss{background:var(--acc-soft);color:var(--acc)}
+.iconbtn.danger{background:color-mix(in srgb,var(--red) 15%,transparent);color:var(--red)}
+.iconbtn.danger:active{background:color-mix(in srgb,var(--red) 24%,transparent)}
 .iconbtn:disabled{opacity:.32}
 
 h4.sec{
@@ -1182,6 +1184,30 @@ h4.sec{
   background:var(--surface);box-shadow:inset 0 0 0 1.5px var(--acc-line);
 }
 .workout-swipe-surface{touch-action:pan-y}
+
+/* --- the session header, pinned (views/Workout.jsx) ---
+   Everything down to the "exercise N of M" line stays on screen for the whole workout: the
+   name, the elapsed clock, the progress bar, the running order and where in it you are. A
+   set list is taller than a phone, so scrolled to the bottom of one you would otherwise have
+   no idea how far along the session is without scrolling back up.
+   The top padding is the shell's own (.app), pulled up into this block so that once it sticks
+   it covers the status bar / notch too instead of letting rows slide through it. The ::before
+   is what paints the strip: the page gutter is outside this element, and a background that
+   stopped at the content edge would leave the sets showing through either side. */
+.wtop{
+  position:sticky;top:0;z-index:20;
+  padding-top:calc(var(--sat) + 8px);margin-top:calc(-1 * (var(--sat) + 8px));
+  padding-bottom:2px;
+}
+.wtop::before{
+  content:'';position:absolute;z-index:-1;
+  top:0;bottom:0;left:-50vw;right:-50vw;
+  background:var(--bg);
+}
+/* A pinned header is paid for out of the screen you log sets on, so it spends less on air
+   than the same block does when it is just the top of a page. */
+.wtop .hdr{margin-bottom:10px}
+.wtop .wprog{margin-bottom:10px}
 /* A superset nests a card inside the page's own gutter, so its inset is paid twice. On a
    narrow phone that left the weight and reps steppers too tight to show a three-digit
    number — reported as "the reps textbox becomes too small when superset on mobile". The
@@ -1225,6 +1251,7 @@ h4.sec{
   .app .list{display:grid;grid-template-columns:1fr 1fr;gap:8px}
   #modal-root .list,.narrow .list{display:flex;flex-direction:column}
   .narrow{max-width:640px;margin:0 auto}
+  .wtop{padding-top:32px;margin-top:-32px}
   .tiles{grid-template-columns:repeat(4,1fr)}
   .cols .tiles{grid-template-columns:1fr 1fr}
   #tabbar{

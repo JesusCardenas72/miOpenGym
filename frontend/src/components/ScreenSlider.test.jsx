@@ -20,17 +20,26 @@ function Here() {
   return <span data-testid="here">{loc.pathname}</span>
 }
 
-function render(start = '/home') {
+function render(start = '/home', screen = path => <Screen path={path} />) {
   container = document.createElement('div')
   document.body.appendChild(container)
   root = createRoot(container)
   act(() => root.render(
     <MemoryRouter initialEntries={[start]}>
       <Here />
-      <ScreenSlider render={path => <Screen path={path} />} />
+      <ScreenSlider render={screen} />
     </MemoryRouter>
   ))
 }
+
+// A screen that runs a horizontal gesture of its own, the way the workout's set-by-set deck does.
+const OwnSwipe = ({ path }) => (
+  <div data-screen={path}>
+    <div data-owns-swipe data-testid="inner">
+      <button type="button" data-testid="inner-button">tap</button>
+    </div>
+  </div>
+)
 
 const here = () => container.querySelector('[data-testid="here"]').textContent
 const layers = () => [...container.querySelectorAll('.deck-layer')]
@@ -162,5 +171,48 @@ describe('the screens while a finger is down', () => {
     expect(leaving.style.getPropertyValue('--slide-from')).toBe('-120px')
     expect(leaving.style.getPropertyValue('--slide-to')).toBe(-window.innerWidth + 'px')
     expect(arriving.style.getPropertyValue('--slide-to')).toBe('0px')
+  })
+})
+
+/* The app-level slider is an ancestor of every screen, so a screen with a swipe of its own is a
+   pointer gesture inside a pointer gesture. Both used to start on the same pointerdown, and this
+   one — running last, as the outer element — took the capture away from the inner surface, which
+   was then told it had lost the pointer before a single move reached it. That is what stopped the
+   workout paging between sets with a finger, on a phone where nothing else could be blamed. */
+describe('a screen that owns its own horizontal gesture', () => {
+  const inner = () => container.querySelector('[data-testid="inner"]')
+
+  it('does not start a screen swipe from inside it', () => {
+    render('/home', path => <OwnSwipe path={path} />)
+    act(() => pointer('pointerdown', inner(), 200, 300))
+    act(() => pointer('pointermove', inner(), 200 - SWIPE_MIN_DISTANCE, 300))
+    // No neighbour drawn alongside: the gesture never began, so there is nothing to page to.
+    expect(layers()).toHaveLength(1)
+    act(() => pointer('pointerup', inner(), 200 - SWIPE_MIN_DISTANCE, 300))
+    expect(here()).toBe('/home')
+  })
+
+  it('does not take the pointer, so the screen inside keeps its own capture', () => {
+    render('/home', path => <OwnSwipe path={path} />)
+    const captured = []
+    surface().setPointerCapture = id => captured.push(id)
+    act(() => pointer('pointerdown', inner(), 200, 300))
+    expect(captured).toEqual([])
+  })
+
+  /* A touch swipe is followed by no click of its own, so the flag a committed one leaves behind
+     stayed set — and the next tap to land somewhere this slider bails out of was swallowed by a
+     gesture that had already ended. On the workout screen that read as buttons doing nothing. */
+  it('does not swallow a later tap inside it because an earlier swipe committed', () => {
+    render('/home', path => <OwnSwipe path={path} />)
+    drag(-SWIPE_MIN_DISTANCE)
+    expect(here()).toBe('/plan')
+    const button = container.querySelector('[data-testid="inner-button"]')
+    let clicked = false
+    button.addEventListener('click', () => { clicked = true })
+    act(() => pointer('pointerdown', button, 200, 300))
+    act(() => pointer('pointerup', button, 200, 300))
+    act(() => button.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })))
+    expect(clicked).toBe(true)
   })
 })

@@ -48,11 +48,6 @@ const curIdx = () => useStore.getState().S.active.cur
 // counter line above the card is the only place both are stated, which makes it the honest
 // thing to assert against — it is what the screen actually claims.
 const where = () => container.querySelector('[data-testid="workout-position"]').textContent.replace(/\s+/g, ' ').trim()
-// The Prev/Next buttons, which still walk the session one set at a time.
-const press = label => {
-  const button = [...container.querySelectorAll('button')].find(b => b.textContent.trim() === label)
-  act(() => button.dispatchEvent(new MouseEvent('click', { bubbles: true })))
-}
 
 // happy-dom has no PointerEvent constructor with the fields we need, and React only needs the
 // plain properties — so a MouseEvent carrying a pointerId/pointerType is enough to drive the
@@ -136,69 +131,52 @@ describe('swipe a set row away', () => {
 describe('swipe between exercises', () => {
   it('drags left to the next exercise and right back to the previous one', () => {
     renderWorkout([entry('1001', 3), entry('1002', 3)])
-    expect(where()).toBe('Exercise 1 / 2 · Set 1 / 3')
+    expect(where()).toBe('Exercise 1 / 2')
     drag(surface(), -SWIPE_MIN_DISTANCE)
+    expect(where()).toBe('Exercise 2 / 2')
     expect(curIdx()).toBe(1)
-    expect(where()).toBe('Exercise 2 / 2 · Set 1 / 3')
     drag(surface(), SWIPE_MIN_DISTANCE)
+    expect(where()).toBe('Exercise 1 / 2')
     expect(curIdx()).toBe(0)
-    expect(where()).toBe('Exercise 1 / 2 · Set 1 / 3')
   })
 
-  // The point of paging by exercise: a swipe is for looking ahead or back over the session,
-  // so it clears the sets in between rather than walking them one at a time. Stepping through
-  // the sets of an exercise is what the Prev/Next buttons are for.
-  it('jumps the whole exercise rather than walking its sets', () => {
-    renderWorkout([entry('1001', 3), entry('1002', 3)])
+  /* The screen is the exercise, so every set of it is on the card at once, one under the next.
+     Paging by set instead put them on screens of their own, and a routine's three sets read as
+     one — you could not see the other two, and adding a set looked like a button doing nothing. */
+  it('lists every set of the exercise on the one screen', () => {
+    renderWorkout([entry('1001', 3), entry('1002', 2)])
+    expect(rows()).toHaveLength(3)
+    expect(rows().map(r => r.dataset.swipeSet)).toEqual(['0', '1', '2'])
+    // And the numbers down the card are the sets themselves, in order.
+    expect(rows().map(r => r.querySelector('.n').textContent)).toEqual(['1', '2', '3'])
     drag(surface(), -SWIPE_MIN_DISTANCE)
-    expect(where()).toBe('Exercise 2 / 2 · Set 1 / 3')
-    press('Next')
-    expect(where()).toBe('Exercise 2 / 2 · Set 2 / 3')
+    expect(rows()).toHaveLength(2)
+    expect(rows().map(r => r.dataset.swipeSet)).toEqual(['0', '1'])
   })
 
-  // Which set the exercise opens on is the same answer a tap in the dock gets: the first one
-  // still to be done, so a swipe forward lands on the work rather than on finished rows.
-  it('opens the exercise on the first set still to be done', () => {
-    const second = entry('1002', 3)
-    second.sets[0].done = true
-    renderWorkout([entry('1001', 3), second])
-    drag(surface(), -SWIPE_MIN_DISTANCE)
-    expect(where()).toBe('Exercise 2 / 2 · Set 2 / 3')
-  })
-
-  // What the gesture is *for*: looking at what is coming without giving up what is running.
-  it('leaves a rest counting down on the exercise that started it', () => {
-    renderWorkout([entry('1001', 3), entry('1002', 3)])
-    act(() => useUI.setState({ timer: { end: Date.now() + 60000, total: 60, forIdx: 0 } }))
-    drag(surface(), -SWIPE_MIN_DISTANCE)
-    expect(curIdx()).toBe(1)
-    expect(useUI.getState().timer?.forIdx).toBe(0)
-  })
-
-  it('shows one set at a time, and only the one it is on', () => {
-    renderWorkout([entry('1001', 3), entry('1002', 3)])
-    expect(rows()).toHaveLength(1)
-    expect(rows()[0].dataset.swipeRow).toBe('0')
-    expect(rows()[0].dataset.swipeSet).toBe('0')
-    drag(surface(), -SWIPE_MIN_DISTANCE)
-    expect(rows()).toHaveLength(1)
-    expect(rows()[0].dataset.swipeRow).toBe('1')
+  it('keeps a warm-up on the same card as the work sets it ramps to', () => {
+    const warmed = entry('1001', 3)
+    warmed.sets.unshift({ w: 10, r: 5, done: false, phase: 'warmup' })
+    renderWorkout([warmed])
+    expect(rows()).toHaveLength(4)
+    // Numbering restarts per phase: the warm-up is 1, and the work sets count 1..3 after it.
+    expect(rows().map(r => r.querySelector('.n').textContent)).toEqual(['1', '1', '2', '3'])
   })
 
   it('ignores a mostly vertical drag so the page can still scroll', () => {
     renderWorkout([entry('1001', 3), entry('1002', 3)])
     drag(surface(), 20, 120)
-    expect(where()).toBe('Exercise 1 / 2 · Set 1 / 3')
+    expect(where()).toBe('Exercise 1 / 2')
   })
 
   it('does not page past either end of the session', () => {
     renderWorkout([entry('1001', 2), entry('1002', 2)], 1)
     drag(surface(), -SWIPE_MIN_DISTANCE)
-    expect(where()).toBe('Exercise 2 / 2 · Set 1 / 2')
+    expect(where()).toBe('Exercise 2 / 2')
     drag(surface(), SWIPE_MIN_DISTANCE)
-    expect(where()).toBe('Exercise 1 / 2 · Set 1 / 2')
+    expect(where()).toBe('Exercise 1 / 2')
     drag(surface(), SWIPE_MIN_DISTANCE)
-    expect(where()).toBe('Exercise 1 / 2 · Set 1 / 2')
+    expect(where()).toBe('Exercise 1 / 2')
   })
 
   // Leftwards on a removable row belongs to the delete track, so a row can only be paged
@@ -206,7 +184,7 @@ describe('swipe between exercises', () => {
   it('pages back even when the drag starts on a set row', () => {
     renderWorkout([entry('1001', 3), entry('1002', 3)], 1)
     drag(rows()[0].querySelector('.n'), SWIPE_MIN_DISTANCE)
-    expect(where()).toBe('Exercise 1 / 2 · Set 1 / 3')
+    expect(where()).toBe('Exercise 1 / 2')
     expect(activeSets()).toHaveLength(3)
   })
 })
@@ -215,15 +193,16 @@ describe('the exercises while a finger is down', () => {
   const layers = () => [...container.querySelectorAll('.deck-layer')]
 
   it('draws the next exercise alongside, both following the finger', () => {
-    renderWorkout([entry('1001', 3), entry('1002', 3)])
+    renderWorkout([entry('1001', 3), entry('1002', 2)])
     drag(surface(), -120, 0, { release: false })
     expect(layers()).toHaveLength(2)
     expect(layers()[0].style.transform).toBe('translateX(-120px)')
     expect(layers()[1].style.transform).toBe('translateX(' + (window.innerWidth - 120) + 'px)')
-    // The exercise being worked is the only one that answers to a tap; the one sliding past is scenery.
+    // The exercise being worked is the only one that answers to a tap; the one sliding past
+    // is scenery — and it arrives with all of its own sets already drawn.
     expect(layers()[1].className).toContain('deck-over')
     expect(layers()[1].getAttribute('aria-hidden')).toBe('true')
-    expect(layers()[1].querySelector('.setrow').dataset.swipeRow).toBe('1')
+    expect(layers()[1].querySelectorAll('.setrow')).toHaveLength(2)
   })
 
   it('draws one exercise only until the drag has committed to the horizontal', () => {
@@ -237,7 +216,7 @@ describe('the exercises while a finger is down', () => {
     renderWorkout([entry('1001', 3), entry('1002', 3)])
     drag(surface(), -120, 0, { release: false })
     act(() => pointer('pointerup', surface(), 200 - 120, 300))
-    expect(where()).toBe('Exercise 2 / 2 · Set 1 / 3')
+    expect(where()).toBe('Exercise 2 / 2')
     const [leaving, arriving] = layers()
     expect(leaving.className).toContain('deck-sliding')
     expect(leaving.style.getPropertyValue('--slide-from')).toBe('-120px')
@@ -256,32 +235,27 @@ describe('the exercises while a finger is down', () => {
   })
 })
 
-describe('supersets travel a round at a time', () => {
+describe('a superset travels as one', () => {
   const linked = (id, sets, sg) => ({ ...entry(id, sets), sg })
 
-  it('keeps the linked sets of one round on the same screen', () => {
-    renderWorkout([linked('1001', 2, 'g1'), linked('1002', 2, 'g1')])
-    expect(where()).toBe('Superset 1 / 1 · Round 1 / 2')
-    // Both exercises of the group, one row each — the round, not one exercise's set.
-    expect(rows()).toHaveLength(2)
-    expect(rows().map(r => r.dataset.swipeSet)).toEqual(['0', '0'])
+  it('keeps its linked exercises, and all their sets, on the same screen', () => {
+    renderWorkout([linked('1001', 2, 'g1'), linked('1002', 3, 'g1')])
+    expect(where()).toBe('Superset 1 / 1')
+    // Both exercises of the group, every set of each — they are done back to back.
+    expect(rows()).toHaveLength(5)
+    expect(rows().map(r => r.dataset.swipeSet)).toEqual(['0', '1', '0', '1', '2'])
   })
 
-  // A swipe leaves the whole group behind — the partner is not next door, it is on this very
-  // screen, and the next round is a step the Prev/Next buttons take.
-  it('swipes past the whole group rather than to its partner or its next round', () => {
+  it('pages past the whole group rather than into its partner', () => {
     renderWorkout([linked('1001', 2, 'g1'), linked('1002', 2, 'g1'), entry('1003', 2)])
+    expect(where()).toBe('Superset 1 / 2')
     drag(surface(), -SWIPE_MIN_DISTANCE)
-    expect(where()).toBe('Exercise 2 / 2 · Set 1 / 2')
+    expect(where()).toBe('Exercise 2 / 2')
+    expect(curIdx()).toBe(2)
     drag(surface(), SWIPE_MIN_DISTANCE)
-    expect(where()).toBe('Superset 1 / 2 · Round 1 / 2')
-  })
-
-  it('runs an uneven group on with only the member that has sets left', () => {
-    renderWorkout([linked('1001', 3, 'g1'), linked('1002', 1, 'g1')])
-    press('Next')
-    expect(where()).toBe('Superset 1 / 1 · Round 2 / 3')
-    expect(rows()).toHaveLength(1)
+    // Back onto the group lands on its first exercise, where its work starts.
+    expect(where()).toBe('Superset 1 / 2')
+    expect(curIdx()).toBe(0)
   })
 })
 
@@ -291,51 +265,51 @@ describe('supersets travel a round at a time', () => {
 // second finger were down — which is what it looks like when the workout simply stops
 // responding to swipes until the page is reloaded.
 describe('a gesture that never gets its pointerup', () => {
+  const three = () => [entry('1001', 2), entry('1002', 2), entry('1003', 2)]
   const abandon = () => {
     act(() => pointer('pointerdown', surface(), 200, 300))
     act(() => pointer('pointermove', surface(), 200 - SWIPE_MIN_DISTANCE, 300))
   }
 
   it('is ended by the lift landing anywhere at all, and the next swipe still works', () => {
-    renderWorkout([entry('1001', 3), entry('1002', 3), entry('1003', 3)])
+    renderWorkout(three())
     abandon()
     // The lift reaches the window rather than the card — off the element, or past a capture
     // that was never granted.
     act(() => pointer('pointerup', window, 200 - SWIPE_MIN_DISTANCE, 300))
-    expect(where()).toBe('Exercise 2 / 3 · Set 1 / 3')
+    expect(where()).toBe('Exercise 2 / 3')
 
     drag(surface(), -SWIPE_MIN_DISTANCE)
-    expect(where()).toBe('Exercise 3 / 3 · Set 1 / 3')
+    expect(where()).toBe('Exercise 3 / 3')
   })
 
   // The worst case, and the one that was actually reaching people: the pointer is never heard
   // from again at all. Nothing can end that gesture but the next press.
   it('is superseded by the next press when its pointer never reports again', () => {
-    renderWorkout([entry('1001', 3), entry('1002', 3), entry('1003', 3)])
+    renderWorkout(three())
     abandon()
-    expect(where()).toBe('Exercise 1 / 3 · Set 1 / 3')
+    expect(where()).toBe('Exercise 1 / 3')
 
     drag(surface(), -SWIPE_MIN_DISTANCE)
-    expect(where()).toBe('Exercise 2 / 3 · Set 1 / 3')
+    expect(where()).toBe('Exercise 2 / 3')
     drag(surface(), -SWIPE_MIN_DISTANCE)
-    expect(where()).toBe('Exercise 3 / 3 · Set 1 / 3')
+    expect(where()).toBe('Exercise 3 / 3')
   })
 
   it('is ended by a cancelled touch, without paging', () => {
-    renderWorkout([entry('1001', 3), entry('1002', 3)])
+    renderWorkout(three())
     abandon()
     act(() => pointer('pointercancel', window, 200 - SWIPE_MIN_DISTANCE, 300))
-    expect(where()).toBe('Exercise 1 / 2 · Set 1 / 3')
+    expect(where()).toBe('Exercise 1 / 3')
 
     drag(surface(), -SWIPE_MIN_DISTANCE)
-    expect(where()).toBe('Exercise 2 / 2 · Set 1 / 3')
+    expect(where()).toBe('Exercise 2 / 3')
   })
 })
 
-// With one set to a screen the card is mostly buttons and the exercise's picture. Excluding
-// those from the gesture left almost nothing to grab, and a swipe that began on them did
-// nothing at all — the tap they carry is protected by the travel threshold, not by refusing
-// the drag outright.
+// Excluding the card's buttons and the exercise's picture from the gesture left little to grab
+// on a phone, and a swipe that began on them did nothing at all — the tap they carry is
+// protected by the travel threshold, not by refusing the drag outright.
 describe('where a swipe may start', () => {
   const startOn = el => {
     act(() => pointer('pointerdown', el, 200, 300))
@@ -349,7 +323,7 @@ describe('where a swipe may start', () => {
       .find(b => !b.closest('[data-swipe-row]'))
     expect(button).toBeTruthy()
     startOn(button)
-    expect(where()).toBe('Exercise 2 / 2 · Set 1 / 3')
+    expect(where()).toBe('Exercise 2 / 2')
   })
 
   it('pages from a drag that begins on the exercise picture', () => {
@@ -357,7 +331,7 @@ describe('where a swipe may start', () => {
     const media = container.querySelector('.deck-layer:not(.deck-over) .exmedia')
     expect(media).toBeTruthy()
     startOn(media)
-    expect(where()).toBe('Exercise 2 / 2 · Set 1 / 3')
+    expect(where()).toBe('Exercise 2 / 2')
   })
 
   // A tap is still a tap: nothing has travelled, so the button underneath gets its click.
@@ -372,10 +346,42 @@ describe('where a swipe may start', () => {
 
   // Typing into a set's weight or reps means dragging across the number to select it.
   it('leaves a drag that begins in a typed field alone', () => {
-    renderWorkout([entry('1001', 3)])
+    renderWorkout([entry('1001', 3), entry('1002', 3)])
     const field = container.querySelector('.deck-layer:not(.deck-over) input')
     expect(field).toBeTruthy()
     startOn(field)
-    expect(where()).toBe('Exercise 1 / 1 · Set 1 / 3')
+    expect(where()).toBe('Exercise 1 / 2')
+  })
+})
+
+describe('adding a set from inside the session', () => {
+  const tap = label => {
+    const button = [...container.querySelectorAll('.deck-layer:not(.deck-over) button')]
+      .find(el => el.textContent.trim() === label)
+    expect(button).toBeTruthy()
+    act(() => button.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })))
+  }
+
+  // The set appears on the card you are already looking at — no screen to go and find it on.
+  it('draws the new set under the ones already there', () => {
+    renderWorkout([entry('1001', 3)])
+    expect(rows()).toHaveLength(3)
+    tap('Add set')
+    expect(activeSets()).toHaveLength(4)
+    expect(rows()).toHaveLength(4)
+    expect(rows()[3].querySelector('.n').textContent).toBe('4')
+  })
+
+  it('carries the weight and reps of the set before it', () => {
+    renderWorkout([entry('1001', 3)])
+    tap('Add set')
+    expect(activeSets()[3]).toMatchObject({ w: 22, r: 5, done: false })
+  })
+
+  it('takes the last set back off again, still on the same card', () => {
+    renderWorkout([entry('1001', 3)])
+    tap('Remove set')
+    expect(activeSets()).toHaveLength(2)
+    expect(rows()).toHaveLength(2)
   })
 })
