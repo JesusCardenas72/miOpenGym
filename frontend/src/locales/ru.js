@@ -397,6 +397,7 @@ export default {
   'Remove from routine': 'Убрать из программы',
   'Minimize': 'Свернуть',
   'Expand': 'Развернуть',
+  'Hide': 'Скрыть',
   'Exercise animations': 'Анимации упражнений',
   'Full': 'Полная',
   'Small': 'Малая',

@@ -18,13 +18,16 @@ export default function Media({ ex, id, compact, minimizable }) {
   if (!ex.gif) return null
   if (minimizable && gifSize === 'off') return null
   const mini = minimizable && gifSize === 'mini'
-  const toggleSize = e => { e.stopPropagation(); update(s => { s.gifSize = mini ? 'full' : 'mini' }) }
+  // The workout toggle steps through the same three sizes the Settings selector offers —
+  // full → mini → off (hidden) → full — one press at a time. When off, this renders nothing
+  // and the way back is the "Expand" chip beside the exercise number (see Workout.jsx).
+  const toggleSize = e => { e.stopPropagation(); update(s => { s.gifSize = mini ? 'off' : 'mini' }) }
   return (
     <div className={'exmedia' + (compact ? ' compact' : '') + (mini ? ' mini' : '')} id={id} onClick={() => setPlaying(p => !p)}>
       <img decoding="async" draggable={false} src={playing ? gifSrc(ex) : imgSrc(ex)} alt={exerciseNameFor(ex)} />
       {minimizable && (
         <button className="giftoggle" onClick={toggleSize}>
-          <Icon name={mini ? 'expand' : 'minimize'} />{mini ? t('Expand') : t('Minimize')}
+          <Icon name={mini ? 'eyeSlash' : 'minimize'} />{mini ? t('Hide') : t('Minimize')}
         </button>
       )}
       {!mini && (

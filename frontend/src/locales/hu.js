@@ -403,6 +403,7 @@ export default {
   'Remove from routine': 'Eltávolítás a rutinból',
   'Minimize': 'Kicsinyítés',
   'Expand': 'Kibontás',
+  'Hide': 'Elrejtés',
   'Exercise animations': 'Gyakorlat-animációk',
   'Full': 'Teljes',
   'Small': 'Kicsi',

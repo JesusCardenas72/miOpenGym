@@ -51,6 +51,13 @@ describe('Media gifSize', () => {
     expect(host.querySelector('.exmedia.mini')).toBeTruthy()
   })
 
+  it('steps the toggle from mini to off (hidden) as the next size in the sequence', () => {
+    mocks.S = { gifSize: 'mini' }
+    mount({ minimizable: true })
+    act(() => { host.querySelector('.giftoggle').click() })
+    expect(mocks.S.gifSize).toBe('off')
+  })
+
   it("renders nothing at all in the workout when gifSize is 'off'", () => {
     mocks.S = { gifSize: 'off' }
     mount({ minimizable: true })

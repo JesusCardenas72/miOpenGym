@@ -397,6 +397,7 @@ export default {
   'Remove from routine': '루틴에서 제거',
   'Minimize': '축소',
   'Expand': '확대',
+  'Hide': '숨기기',
   'Exercise animations': '운동 애니메이션',
   'Full': '전체',
   'Small': '작게',
