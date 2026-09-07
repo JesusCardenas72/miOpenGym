@@ -12,6 +12,10 @@ export const DEF = {
   unit: 'kg', restSec: 90, restPauseSec: 15, sound: true, timerFlash: false, keepAwake: true, lang: 'en',
   theme: 'dark', accent: 'lime', body: 'male', targetW: null,
   bodyweight: [], routines: [], week: {}, dayPlan: {},
+  // Calendar programming: a repeating microcycle laid out as an ordered sequence of days
+  // (routine ids and 'rest'), anchored to a start date. null = use the weekly plan (S.week).
+  // See lib/program.js. microcycleSessions is the volume window for the home panel (lib/volume.js).
+  program: null, microcycleSessions: 6,
   exWeights: {}, workouts: [], active: null, customEx: [], gifSize: 'full',
   // effort: which per-set effort scale is logged — 'none' | 'rir' | 'rpe'. null, not 'none', so
   // that a profile which never chose (loaded state is overlaid on DEF, on every path: local,

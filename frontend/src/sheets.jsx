@@ -3,7 +3,9 @@ import { useStore } from './store/useStore.js'
 import { useUI } from './store/useUI.js'
 import { EXDB, EXIDX, BODYPARTS, isCardio, isBodyweightEq, allExercises, equipmentOf, smOf, matchExercise, exOr } from './lib/exercises.js'
 import { activeProfile, exAvailable, ALL_EQUIPMENT, newProfile } from './lib/equipment.js'
-import { fmtDate, fmtNum, fmtVol, fmtDur, durPart, todayISO, isoOf, uid, exCount, DAYN, MONTHS_LONG, ACCENTS } from './lib/format.js'
+import { fmtDate, fmtNum, fmtVol, fmtDur, durPart, todayISO, isoOf, uid, exCount, DAYN, DAYS, MONTHS_LONG, ACCENTS } from './lib/format.js'
+import { programActive, emptyProgram, REST } from './lib/program.js'
+import { microcycleLength } from './lib/volume.js'
 import { lastEntryFor, bestWeightFor, buildSets, effectiveRoutineId, workoutVolume, setsDone, setsDoneActive, lastBW, supersetUnits, unitOf, setLabel, defaultConfig, cleanupSg, modeOf, effortOf, isBw, isPerSide, sideReps, workSetsDone, applyIntensifierPlan, MAX_PLANNED_WARMUPS, NOTE_MAX } from './lib/history.js'
 import { beep, vibrate } from './lib/sound.js'
 import { t, instrFor, exerciseNameFor, exerciseNameOverrideFor, catalogueNameFor, getLang, INSTR_LANGS } from './lib/i18n.js'
@@ -1349,6 +1351,94 @@ function DayAssign({ day, close }) {
   </>
 }
 export const dayAssignSheet = day => ui().openSheet(close => <DayAssign day={day} close={close} />)
+
+/* ============================ calendar programming ============================ */
+// Build the microcycle as a repeating sequence of training/rest days and project it onto the
+// calendar. Every mutation writes straight to S.program so the week strip, the calendar and the
+// volume window all update live. See lib/program.js.
+function ProgramSheet({ close }) {
+  const st = useStore(s => s.S)
+  const prog = st.program
+  const seq = (prog && prog.seq) || []
+  const anchor = (prog && prog.anchor) || todayISO()
+  const micro = microcycleLength(st)
+  const routine = id => st.routines.find(r => r.id === id)
+
+  const mut = fn => update(s => { if (!s.program) s.program = emptyProgram(todayISO()); fn(s.program) })
+  const addStep = v => mut(p => { p.seq = [...p.seq, v] })
+  const removeStep = i => mut(p => { p.seq = p.seq.filter((_, j) => j !== i) })
+  const moveStep = (i, dir) => mut(p => {
+    const j = i + dir
+    if (j < 0 || j >= p.seq.length) return
+    const s2 = [...p.seq]; [s2[i], s2[j]] = [s2[j], s2[i]]; p.seq = s2
+  })
+  const setAnchor = v => { if (v) mut(p => { p.anchor = v }) }
+  const setOn = v => mut(p => { p.on = v })
+  const setMicro = n => update(s => { s.microcycleSessions = Math.max(1, Math.round(n) || 1) })
+
+  const glyphFor = step => step === REST ? 'moon' : glyphOf((routine(step) || {}).emoji)
+  const labelFor = step => step === REST ? t('Rest day') : (routine(step) ? routine(step).name : t('Deleted routine'))
+
+  // Next 14 days as the app will actually schedule them — program, per-day overrides and the
+  // weekly plan all folded in by effectiveRoutineId — so the strip is the real projection.
+  const preview = []
+  const base = new Date(todayISO() + 'T12:00:00')
+  for (let i = 0; i < 14; i++) {
+    const d = new Date(base); d.setDate(base.getDate() + i)
+    const iso = isoOf(d)
+    preview.push({ iso, wd: d.getDay(), dn: d.getDate(), r: routine(effectiveRoutineId(st, iso)) })
+  }
+
+  return <>
+    <h3>{t('Programming')}</h3>
+    <div className="muted small" style={{ marginBottom: 14 }}>{t('Lay your microcycle out as a repeating sequence of training and rest days. It projects onto the calendar and, while on, overrides the weekly schedule from the start date.')}</div>
+
+    <div className="list" style={{ marginBottom: 4 }}>
+      <Row title={t('Use programming')} subtitle={programActive(prog) ? t('Overriding the weekly schedule') : t('Weekly schedule is in use')}>
+        <Switch checked={!!(prog && prog.on)} onChange={setOn} disabled={!seq.length} />
+      </Row>
+    </div>
+
+    <h4 className="sec">{t('Day sequence')}</h4>
+    {seq.length ? <div className="prog-seq">
+      {seq.map((step, i) => <div key={i} className={'prog-step' + (step === REST ? ' rest' : '')}>
+        <span className="n">{i + 1}</span>
+        <span className="lrow-i" style={step === REST ? { background: 'var(--surface-3)' } : null}><Icon name={glyphFor(step)} /></span>
+        <span className="grow tt">{labelFor(step)}</span>
+        <button className="iconbtn" style={{ width: 28, height: 28, fontSize: 12, flex: 'none' }} onClick={() => moveStep(i, -1)} disabled={i === 0} aria-label={t('Move up')}><Icon name="chevronUp" /></button>
+        <button className="iconbtn" style={{ width: 28, height: 28, fontSize: 12, flex: 'none' }} onClick={() => moveStep(i, 1)} disabled={i === seq.length - 1} aria-label={t('Move down')}><Icon name="chevronDown" /></button>
+        <button className="iconbtn danger" style={{ width: 28, height: 28, fontSize: 12, flex: 'none' }} onClick={() => removeStep(i)} aria-label={t('Remove')}><Icon name="xmark" /></button>
+      </div>)}
+    </div> : <div className="empty small" style={{ padding: '10px 0' }}>{t('Add routines and rest days below to build the sequence.')}</div>}
+
+    <div className="prog-add">
+      {st.routines.map(r => <button key={r.id} className="chip" onClick={() => addStep(r.id)}><Icon name={glyphOf(r.emoji)} />{r.name}</button>)}
+      <button className="chip" onClick={() => addStep(REST)}><Icon name="moon" />{t('Rest')}</button>
+    </div>
+
+    <h4 className="sec" style={{ marginTop: 18 }}>{t('Start date')}</h4>
+    <input type="date" className="field" value={anchor} onChange={e => setAnchor(e.target.value)} />
+
+    <div className="list" style={{ marginTop: 14 }}>
+      <Row title={t('Sessions per microcycle')} subtitle={t('The window the volume panel sums')}>
+        <Stepper value={micro} step={1} decimal={false} onChange={setMicro} />
+      </Row>
+    </div>
+
+    <h4 className="sec" style={{ marginTop: 18 }}>{t('Next 14 days')}</h4>
+    <div className="prog-prev">
+      {preview.map(p => <button key={p.iso} className={'prog-day' + (p.iso === todayISO() ? ' today' : '')} onClick={() => { close(); dayOverrideSheet(p.iso) }}>
+        <span className="wd">{t(DAYS[p.wd])}</span>
+        <span className="dn">{p.dn}</span>
+        <span className="lrow-i sm" style={p.r ? null : { background: 'var(--surface-3)' }}><Icon name={p.r ? glyphOf(p.r.emoji) : 'moon'} /></span>
+      </button>)}
+    </div>
+    <div style={{ marginTop: 12 }}>
+      <Button icon="calendar" onClick={() => { close(); calendarSheet() }}>{t('Open calendar')}</Button>
+    </div>
+  </>
+}
+export const programSheet = () => ui().openSheet(close => <ProgramSheet close={close} />)
 
 /* ============================ workout detail ============================ */
 function WorkoutDetail({ w, close }) {

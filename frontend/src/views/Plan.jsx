@@ -2,7 +2,8 @@ import { useNavigate } from 'react-router-dom'
 import { useStore } from '../store/useStore.js'
 import { DAYN, uid, exCount } from '../lib/format.js'
 import { t } from '../lib/i18n.js'
-import { dayAssignSheet, loadStarterPlan, planToolsSheet } from '../sheets.jsx'
+import { dayAssignSheet, loadStarterPlan, planToolsSheet, programSheet } from '../sheets.jsx'
+import { programActive } from '../lib/program.js'
 import Icon from '../components/Icon.jsx'
 import { Button } from '../components/ui.jsx'
 import { tappable } from '../lib/use-sheet-keyboard.js'
@@ -25,7 +26,22 @@ export default function Plan() {
       <button className="iconbtn" onClick={planToolsSheet} aria-label={t('Share your plan')} title={t('Share your plan')}><Icon name="upload" /></button>
     </div>
     <div className="cols"><div>
+      <h4 className="sec">{t('Programming')}</h4>
+      <div className="list" style={{ marginBottom: 6 }}>
+        <div className="item" {...tappable(programSheet)}>
+          <span className="lrow-i"><Icon name="calendar" /></span>
+          <div className="grow">
+            <div className="tt">{t('Day sequence')}</div>
+            <div className="ss">{programActive(S.program)
+              ? t('{0}-day cycle · active', S.program.seq.length)
+              : t('Off — using weekly schedule')}</div>
+          </div>
+          <Icon name="chevronRight" className="chev" />
+        </div>
+      </div>
+
       <h4 className="sec">{t('Week schedule')}</h4>
+      {programActive(S.program) && <div className="small dim" style={{ margin: '-2px 0 8px' }}>{t('Overridden by the program while it is on.')}</div>}
       <div className="list" style={{ display: 'flex', flexDirection: 'column' }}>
         {[1, 2, 3, 4, 5, 6, 0].map(d => {
           const r = S.routines.find(x => x.id === S.week[d])

@@ -2,6 +2,7 @@
 import { todayISO, isoOf, weekKey, fmtNum } from './format.js'
 import { isCardio, isBodyweightEq } from './exercises.js'
 import { phaseForSet, modeForSet, modeForEntry, isWarmupRow, normalizeMode, extraVolumeOf, nextDropWeight, splitBurstReps } from './workout-model.js'
+import { programStep, REST } from './program.js'
 const objectOf = value => value && typeof value === 'object' && !Array.isArray(value) ? value : {}
 // Completed-state-independent work rows whose authoritative mode matches the requested mode.
 const workRowsForMode = (entry = {}, mode = 'reps') => {
@@ -274,9 +275,17 @@ export function bestWeightFor(S, exId) {
   return best
 }
 export function effectiveRoutineId(S, iso) {
+  // A per-day override is a manual reschedule ("moved leg day to Wednesday") and wins over
+  // everything, including an active program.
   const ov = S.dayPlan[iso]
   if (ov === 'rest') return null
   if (ov && S.routines.some(r => r.id === ov)) return ov
+  // Next, a repeating program (lib/program.js), if one is on and this date is on/after its
+  // anchor. It fully drives the day then — a rest step is a rest day, and a step pointing at a
+  // since-deleted routine reads as rest rather than falling back to the weekday plan.
+  const step = programStep(S.program, iso)
+  if (step != null) return step === REST || !S.routines.some(r => r.id === step) ? null : step
+  // Otherwise the classic weekly plan.
   const wd = new Date(iso + 'T12:00:00').getDay()
   return S.week[wd] || null
 }
