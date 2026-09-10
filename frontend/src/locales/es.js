@@ -450,6 +450,7 @@ export default {
   'Effective sets': 'Series efectivas',
   'Microcycle': 'Microciclo',
   'Last {0} sessions': 'Últimas {0} sesiones',
+  'Target {0}–{1} effective sets per muscle group each microcycle': 'Objetivo {0}–{1} series efectivas por grupo muscular en cada microciclo',
   'effective sets per muscle group': 'series efectivas por grupo muscular',
   '{0} of {1} sets without RIR — counted as effective': '{0} de {1} series sin RIR — contadas como efectivas',
   'under': 'bajo',

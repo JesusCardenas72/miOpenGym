@@ -220,7 +220,7 @@ describe('Stats muscle recovery view runtime', () => {
   it('dispatches real clicks through Balance, Fatigue, and Strength and preserves selection', async () => {
     await mountStats()
     expectPressed(viewButton('Muscle balance'))
-    expectPressed(balanceRangeButton('Week'))
+    expectPressed(balanceRangeButton('Microcycle'))   // the volume window is the default
 
     await click(balanceRangeButton('30d'))
     await click(buttonWithText(muscleCard(), 'All'))
@@ -243,6 +243,21 @@ describe('Stats muscle recovery view runtime', () => {
     expect(buttonWithText(muscleCard(), 'Hard')).toBeTruthy()
     expect(lastMap().selected).toBe('chest')
     expect(lastMap().load.chest).toBe(7)
+  })
+
+  it('opens on the microcycle window and reads its volume against the 10-20 target band', async () => {
+    await mountStats()
+    // Five completed sessions, all inside one 6-session microcycle.
+    expect(container.textContent).toContain('Last 5 sessions')
+    expect(container.textContent).toContain('Target 10–20 effective sets per muscle group each microcycle')
+    expect(container.textContent).toContain('in range 10–20')
+
+    // The band is per microcycle only — the day windows go back to the relative balance map.
+    await click(balanceRangeButton('30d'))
+    expect(container.textContent).not.toContain('Target 10–20 effective sets per muscle group each microcycle')
+
+    await click(balanceRangeButton('Microcycle'))
+    expect(container.textContent).toContain('Target 10–20 effective sets per muscle group each microcycle')
   })
 
   it('updates the rendered Fatigue map and Balance window on the real 60-second interval', async () => {
