@@ -18,3 +18,6 @@ node_modules/
 node_modules
 .claude/
 .agents/
+
+# Locally built APKs (the release APK comes from CI)
+dist-apk/
