@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { isoOf } from './format.js'
-import { buildReminderNotifications } from './mobile.js'
+import { backupFileName, buildReminderNotifications } from './mobile.js'
 
 const push = { id: 'push', name: 'Push' }
 const pull = { id: 'pull', name: 'Pull' }
@@ -58,5 +58,12 @@ describe('buildReminderNotifications', () => {
 
     expect(notifications.some(n => iso(n.schedule.at) === iso(now))).toBe(false)
     expect(notifications.some(n => iso(n.schedule.at) === iso(new Date(2026, 5, 8)))).toBe(true)
+  })
+})
+describe('backupFileName', () => {
+  it('names one file per day, so the same day overwrites rather than piling up', () => {
+    expect(backupFileName('2026-09-10')).toBe('hipertrofit-backup-2026-09-10.json')
+    expect(backupFileName('2026-09-10')).toBe(backupFileName('2026-09-10'))
+    expect(backupFileName('2026-09-11')).not.toBe(backupFileName('2026-09-10'))
   })
 })

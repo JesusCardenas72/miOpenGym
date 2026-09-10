@@ -139,17 +139,82 @@ export async function shareExport(json, filename) {
   await Share.share({ title: filename, url: w.uri })
 }
 
-// "Auto-backup on changes" (Settings): a dated snapshot dropped into the Documents folder —
-// visible in Files (iOS) / a file manager (Android), unlike the private mirror nativeSave keeps
-// — so whatever the user points at that folder (a sync app, a manual copy) always has something
-// recent. One file per day; later triggers the same day just overwrite it.
+// "Auto-backup on changes" (Settings): a dated snapshot written somewhere the user can actually
+// get at, unlike the private mirror nativeSave keeps. One file per day; later triggers the same
+// day overwrite it, so the folder stays readable and a sync app has little to re-upload.
+export function backupFileName(today = todayISO()) {
+  return `hipertrofit-backup-${today}.json`
+}
+
+// The destination folder (Android only — see BackupFolderPlugin.java). The user picks it once
+// through the system folder picker; pointing it at a folder that a mirroring app keeps in sync
+// with Google Drive is what makes these backups leave the phone. Drive cannot be picked
+// directly: it exposes no writable folder to other apps.
+//
+// The chosen folder is remembered natively, not in S — it is a per-device permission grant, and
+// S is what gets exported and synced. Settings therefore reads it back through backupFolder().
+// registerPlugin is resolved once, lazily: importing @capacitor/core at module scope would pull
+// it into every bundle, including the web build where MOBILE folds this file away.
+let pluginOnce = null
+function backupPlugin() {
+  if (!MOBILE) return Promise.resolve(null)
+  if (!pluginOnce) {
+    pluginOnce = import('@capacitor/core')
+      .then(({ registerPlugin, Capacitor }) =>
+        Capacitor.getPlatform() === 'android' ? registerPlugin('BackupFolder') : null)
+      .catch(() => null)
+  }
+  return pluginOnce
+}
+
+/**
+ * { supported, folder } — `supported` is false where there is no folder picker at all (iOS, and
+ * the web build), which is what Settings uses to decide whether to offer the row; `folder` is
+ * the chosen folder's name, null when none is set or the grant has been revoked.
+ */
+export async function backupFolderStatus() {
+  const p = await backupPlugin()
+  if (!p) return { supported: false, folder: null }
+  try { return { supported: true, folder: (await p.status()).folder || null } } catch (e) {
+    return { supported: true, folder: null }
+  }
+}
+
+/** Opens the system folder picker. Resolves to the same shape as backupFolderStatus(). */
+export async function pickBackupFolder() {
+  const p = await backupPlugin()
+  if (!p) return { supported: false, folder: null }
+  try { return { supported: true, folder: (await p.pick()).folder || null } } catch (e) {
+    return { supported: true, folder: null }
+  }
+}
+
+/** Forget the folder and hand the permission back; backups fall back to Documents. */
+export async function clearBackupFolder() {
+  const p = await backupPlugin()
+  if (p) { try { await p.clear() } catch (e) { /* nothing to release */ } }
+  return { supported: !!p, folder: null }
+}
+
+// Falls back to Documents when no folder is set, or when writing to the chosen one fails (card
+// pulled out, permission revoked, sync app uninstalled and took its folder with it) — a backup
+// landing somewhere beats no backup at all.
 export async function writeAutoBackup(state) {
+  const name = backupFileName()
+  const data = JSON.stringify(state)
+  const p = await backupPlugin()
+  if (p) {
+    try {
+      await p.write({ name, data })
+      return
+    } catch (e) { /* no folder chosen, or it went away — fall through to Documents */ }
+  }
   try {
     const { Filesystem, Directory, Encoding } = await import('@capacitor/filesystem')
     await Filesystem.writeFile({
-      path: `opengym-backup-${todayISO()}.json`,
+      path: name,
       directory: Directory.Documents,
-      data: JSON.stringify(state),
+      data,
       encoding: Encoding.UTF8,
       recursive: true,
     })

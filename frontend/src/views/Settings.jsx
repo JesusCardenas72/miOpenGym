@@ -9,7 +9,7 @@ import { pushSupported, enablePush, disablePush, sendTestPush } from '../lib/pus
 import { wakeLockSupported } from '../lib/wakelock.js'
 import { t, LANGS, INSTR_LANGS, EXERCISE_NAME_LANGS } from '../lib/i18n.js'
 import { DEMO, REPO } from '../lib/demo.js'
-import { MOBILE, shareExport, syncReminder } from '../lib/mobile.js'
+import { MOBILE, shareExport, syncReminder, backupFolderStatus, pickBackupFolder, clearBackupFolder } from '../lib/mobile.js'
 import { ConnectSheet } from './MobileOnboarding.jsx'
 import { loadStarterPlan, confirmSheet, importFromApp, importFromHevy, equipmentProfileSheet } from '../sheets.jsx'
 import Icon from '../components/Icon.jsx'
@@ -229,9 +229,10 @@ export default function Settings() {
       <Row icon="upload" iconTint="var(--blue)" title={t('Import backup')} accessory="chevron" onClick={() => fileRef.current.click()} />
       <Row icon="download" iconTint="var(--blue)" title={t('Export backup (JSON)')} accessory="chevron" onClick={doExport} />
       {MOBILE && <Row icon="history" iconTint="var(--blue)" title={t('Auto-backup on changes')}
-        subtitle={t('Saves a dated copy to the Documents folder after finishing a workout or editing a routine — point a sync app at it, or copy it out by hand.')}>
+        subtitle={t('Saves a dated copy after finishing a workout or editing a routine. One file per day, overwritten as the day goes on.')}>
         <Switch checked={!!S.autoBackup} onChange={v => update(s => { s.autoBackup = v })} />
       </Row>}
+      {MOBILE && !!S.autoBackup && <BackupFolderRow toast={toast} />}
       <Row icon="trash" iconTint="var(--red)" title={t('Reset everything')} danger onClick={() => confirmSheet({ title: t('Reset everything?'), message: t('Deletes your plan, workouts and body weight on this device. This cannot be undone.'), confirmText: t('Delete everything'), danger: true, onConfirm: () => { replaceState(JSON.parse(JSON.stringify(DEF)), true); nav('/home'); toast(t('All data reset')) } })} />
     </Section>
     <input ref={fileRef} type="file" accept=".json,application/json" style={{ display: 'none' }} onChange={doImport} />
@@ -292,6 +293,42 @@ function effortHelpSheet() {
     </div>
     <div style={{ height: 8 }} />
   </>)
+}
+
+/**
+ * Where "Auto-backup on changes" writes. Only shown on Android — see BackupFolderPlugin.java:
+ * iOS has no equivalent folder grant, and the copy there stays in Files under the app.
+ *
+ * Google Drive cannot be picked here, and the subtitle says so rather than letting people hunt
+ * for it in the picker: Drive exposes no writable folder to other apps. Pointing this at a
+ * folder that an app like Autosync or FolderSync mirrors into Drive is what gets the backups
+ * off the phone.
+ */
+function BackupFolderRow({ toast }) {
+  const [st, setSt] = useState(null)   // null until the native side answers
+  useEffect(() => { backupFolderStatus().then(setSt) }, [])
+  if (!st?.supported) return null
+
+  const choose = async () => {
+    const next = await pickBackupFolder()
+    setSt(next)
+    if (next.folder) toast(t('Backups will be saved to “{0}”', next.folder))
+  }
+  const forget = () => confirmSheet({
+    title: t('Use the default folder again?'),
+    message: t('New backups go back to the app’s Documents folder. Copies already in the folder you chose are left alone.'),
+    confirmText: t('Use default folder'),
+    onConfirm: async () => { setSt(await clearBackupFolder()); toast(t('Backup folder cleared')) },
+  })
+
+  return <>
+    <Row icon="folder" iconTint="var(--blue)" title={t('Backup folder')}
+      subtitle={st.folder
+        ? t('Sync this folder to Google Drive with an app like Autosync or FolderSync — Drive itself cannot be picked here.')
+        : t('Choose where the copies are written. Google Drive cannot be picked directly; pick a folder a sync app mirrors to Drive.')}
+      value={st.folder || t('Documents')} accessory="chevron" onClick={choose} />
+    {!!st.folder && <Row icon="reset" iconTint="var(--dim)" title={t('Use default folder')} accessory="chevron" onClick={forget} />}
+  </>
 }
 
 function NotificationsCard({ S, update, toast }) {

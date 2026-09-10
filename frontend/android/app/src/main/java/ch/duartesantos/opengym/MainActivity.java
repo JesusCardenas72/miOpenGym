@@ -33,6 +33,10 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
+        // Before super.onCreate: the bridge is built there and only sees plugins registered
+        // by then. BackupFolder is the destination folder for "Auto-backup on changes".
+        registerPlugin(BackupFolderPlugin.class);
+
         super.onCreate(savedInstanceState);
 
         // Null when the device has no usable WebView: BridgeActivity has already swapped in
