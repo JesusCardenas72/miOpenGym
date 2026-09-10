@@ -14,8 +14,14 @@ export const DEF = {
   bodyweight: [], routines: [], week: {}, dayPlan: {},
   // Calendar programming: a repeating microcycle laid out as an ordered sequence of days
   // (routine ids and 'rest'), anchored to a start date. null = use the weekly plan (S.week).
-  // See lib/program.js. microcycleSessions is the volume window for the home panel (lib/volume.js).
+  // See lib/program.js. `strategy` (full-body / upper-lower / ppl / custom) sizes the block
+  // and `cycleStart` is the day sessions are counted from — the two together are what says
+  // where a microcycle begins and ends (lib/microcycle.js). microcycleSessions is the older
+  // manual window, kept as the fallback for profiles saved before strategies existed.
   program: null, microcycleSessions: 6,
+  // Mesocycle bookkeeping: which microcycle indices are deloads, which suggestions were
+  // postponed, and the last reduction the user chose. See lib/mesocycle.js.
+  meso: null,
   exWeights: {}, workouts: [], active: null, customEx: [], gifSize: 'full',
   // effort: which per-set effort scale is logged — 'none' | 'rir' | 'rpe'. null, not 'none', so
   // that a profile which never chose (loaded state is overlaid on DEF, on every path: local,

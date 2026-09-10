@@ -4,8 +4,9 @@ import { useUI } from './store/useUI.js'
 import { EXDB, EXIDX, BODYPARTS, isCardio, isBodyweightEq, allExercises, equipmentOf, smOf, matchExercise, exOr } from './lib/exercises.js'
 import { activeProfile, exAvailable, ALL_EQUIPMENT, newProfile } from './lib/equipment.js'
 import { fmtDate, fmtNum, fmtVol, fmtDur, durPart, todayISO, isoOf, uid, exCount, DAYN, DAYS, MONTHS_LONG, ACCENTS } from './lib/format.js'
-import { programActive, emptyProgram, REST } from './lib/program.js'
-import { microcycleLength } from './lib/volume.js'
+import { programActive, emptyProgram, sessionsPerRound, REST } from './lib/program.js'
+import { STRATEGIES, microcycleLen, strategyOf, cyclePosition } from './lib/microcycle.js'
+import { mesoState, setDeloadPct, DELOAD_PCT } from './lib/mesocycle.js'
 import { lastEntryFor, bestWeightFor, buildSets, effectiveRoutineId, workoutVolume, setsDone, setsDoneActive, lastBW, supersetUnits, unitOf, setLabel, defaultConfig, cleanupSg, modeOf, effortOf, isBw, isPerSide, sideReps, workSetsDone, applyIntensifierPlan, MAX_PLANNED_WARMUPS, NOTE_MAX } from './lib/history.js'
 import { beep, vibrate } from './lib/sound.js'
 import { t, instrFor, exerciseNameFor, exerciseNameOverrideFor, catalogueNameFor, getLang, INSTR_LANGS } from './lib/i18n.js'
@@ -1361,7 +1362,9 @@ function ProgramSheet({ close }) {
   const prog = st.program
   const seq = (prog && prog.seq) || []
   const anchor = (prog && prog.anchor) || todayISO()
-  const micro = microcycleLength(st)
+  const strategy = strategyOf(st)
+  const len = microcycleLen(st)
+  const pos = cyclePosition(st)
   const routine = id => st.routines.find(r => r.id === id)
 
   const mut = fn => update(s => { if (!s.program) s.program = emptyProgram(todayISO()); fn(s.program) })
@@ -1372,8 +1375,11 @@ function ProgramSheet({ close }) {
     if (j < 0 || j >= p.seq.length) return
     const s2 = [...p.seq]; [s2[i], s2[j]] = [s2[j], s2[i]]; p.seq = s2
   })
-  const setAnchor = v => { if (v) mut(p => { p.anchor = v }) }
+  // One date for both jobs: where the calendar projection starts drawing, and where the
+  // session count starts counting. "The start of a microcycle" is exactly that day.
+  const setAnchor = v => { if (v) mut(p => { p.anchor = v; p.cycleStart = v }) }
   const setOn = v => mut(p => { p.on = v })
+  const setStrategy = v => mut(p => { p.strategy = v })
   const setMicro = n => update(s => { s.microcycleSessions = Math.max(1, Math.round(n) || 1) })
 
   const glyphFor = step => step === REST ? 'moon' : glyphOf((routine(step) || {}).emoji)
@@ -1416,12 +1422,23 @@ function ProgramSheet({ close }) {
       <button className="chip" onClick={() => addStep(REST)}><Icon name="moon" />{t('Rest')}</button>
     </div>
 
-    <h4 className="sec" style={{ marginTop: 18 }}>{t('Start date')}</h4>
+    <h4 className="sec" style={{ marginTop: 18 }}>{t('Microcycle start')}</h4>
     <input type="date" className="field" value={anchor} onChange={e => setAnchor(e.target.value)} />
+    <div className="muted small" style={{ marginTop: 6 }}>
+      {t('Sessions are counted from this day. The end of each microcycle follows from the count.')}
+    </div>
 
     <div className="list" style={{ marginTop: 14 }}>
-      <Row title={t('Sessions per microcycle')} subtitle={t('The window the volume panel sums')}>
-        <Stepper value={micro} step={1} decimal={false} onChange={setMicro} />
+      <SelectRow icon="target" title={t('Training strategy')} value={strategy}
+        options={STRATEGIES.map(x => ({ value: x.key, label: t(x.name) }))} onChange={setStrategy} />
+      <Row title={t('Sessions per microcycle')}
+        subtitle={strategy === 'custom' ? t('Counted from your sequence') : t('Set by the strategy')}>
+        {strategy === 'custom' && !sessionsPerRound(prog)
+          ? <Stepper value={len} step={1} decimal={false} onChange={setMicro} />
+          : <span className="v" style={{ fontWeight: 600 }}>{len}</span>}
+      </Row>
+      <Row title={t('Microcycle')} subtitle={t('Session {0} of {1}', pos.step + 1, pos.len)}>
+        <span className="v" style={{ fontWeight: 600 }}>#{pos.cycle + 1}</span>
       </Row>
     </div>
 
@@ -1550,14 +1567,46 @@ export function WorkoutRow({ w, onClick }) {
   </div>
 }
 
+/* ============================ deload session ============================ */
+// The cut a deload session applies. Proposed, not imposed: 25–50%, remembered as the default
+// for the next session of the block. Applies to weight, reps and the number of sets alike.
+function DeloadSheet({ onStart, close }) {
+  const st = useStore(s => s.S)
+  const [pct, setPct] = useState(Math.round(mesoState(st).pct * 100))
+  const clamp = v => Math.min(DELOAD_PCT.max * 100, Math.max(DELOAD_PCT.min * 100, Math.round(v / 5) * 5))
+  const go = () => {
+    update(s => { s.meso = setDeloadPct(s, pct / 100) })
+    close()
+    onStart(pct / 100)
+  }
+  return <>
+    <h3>{t('Deload microcycle')}</h3>
+    <div className="muted small" style={{ marginBottom: 14 }}>
+      {t('This session comes down: less weight, fewer reps and fewer sets. Set how much — the app proposes, you decide.')}
+    </div>
+    <Stepper label={t('Reduction')} unit="%" value={pct} step={5} decimal={false} onChange={v => setPct(clamp(v))} />
+    <div className="muted small" style={{ marginTop: 10 }}>
+      {t('It will not count toward progression, so nothing reads as a stall.')}
+    </div>
+    <div style={{ height: 18 }} />
+    <Button variant="primary" icon="play" onClick={go}>{t('Start workout')}</Button>
+  </>
+}
+const deloadSheet = onStart => ui().openSheet(close => <DeloadSheet onStart={onStart} close={close} />)
+
 /* ============================ workout lifecycle ============================ */
 export function startFlow(routineId) {
-  bwSheet({ required: true, onDone: bw => beginWorkout(routineId, bw) })
+  // On a deload microcycle the app proposes the cut and the user sets it, per session — so
+  // the sheet sits between weighing in and walking up to the bar. See lib/mesocycle.js.
+  bwSheet({ required: true, onDone: bw => {
+    if (mesoState(S()).deload) deloadSheet(pct => beginWorkout(routineId, bw, pct))
+    else beginWorkout(routineId, bw)
+  } })
 }
-export function beginWorkout(routineId, bw) {
+export function beginWorkout(routineId, bw, deload = 0) {
   const st = S()
   const r = routineId ? st.routines.find(x => x.id === routineId) : null
-  const { entries, excluded } = buildSessionEntries(st, r)
+  const { entries, excluded } = buildSessionEntries(st, r, { deload })
   update(s => {
     s.active = {
       id: uid(), d: todayISO(), start: Date.now(), routineId,

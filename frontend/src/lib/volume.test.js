@@ -1,8 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
-  EFFECTIVE_RIR, DEFAULT_MICROCYCLE, VOLUME_TARGET, VOLUME_GROUPS,
-  isEffectiveSet, microcycleLength, groupVolume, microcycleWorkouts,
-  microcycleVolume, microcycleSeries, volumeStatus, volumeColor,
+  EFFECTIVE_RIR, VOLUME_TARGET, VOLUME_GROUPS,
+  isEffectiveSet, groupVolume, cycleVolume, volumeStatus, volumeColor,
 } from './volume.js'
 
 // A work set with an optional RIR. Inline exercise metadata (tg/mg/sm) resolves through
@@ -72,52 +71,24 @@ describe('groupVolume', () => {
   })
 })
 
-describe('microcycle window', () => {
-  const many = Array.from({ length: 9 }, (_, i) =>
-    workout(`2026-09-0${i + 1}`, [curl([set(2)])]))
-
-  it('takes the most recent N sessions, oldest→newest', () => {
-    const win = microcycleWorkouts(many, 6)
-    expect(win.length).toBe(6)
-    expect(win[0].d).toBe('2026-09-04')
-    expect(win[5].d).toBe('2026-09-09')
+describe('cycleVolume', () => {
+  // Six sessions close a PPL block, so the seventh opens a new one and the count restarts:
+  // the panel reports the block being built, not a rolling six.
+  const S = n => ({
+    program: { strategy: 'ppl', seq: ['a', 'b', 'c', 'd', 'e', 'f'], cycleStart: '2026-09-01' },
+    workouts: Array.from({ length: n }, (_, i) =>
+      workout(`2026-09-${String(i + 1).padStart(2, '0')}`, [curl([set(2)])])),
   })
 
-  it('defaults to two PPL rounds', () => {
-    expect(DEFAULT_MICROCYCLE).toBe(6)
-    expect(microcycleVolume(many).sessions).toBe(6)
-    expect(microcycleVolume(many).groups.biceps).toBe(6)
+  it('sums only the sessions logged since the block opened', () => {
+    expect(cycleVolume(S(3))).toMatchObject({ sessions: 3 })
+    expect(cycleVolume(S(3)).groups.biceps).toBe(3)
   })
 
-  it('honours a per-profile microcycle length', () => {
-    expect(microcycleLength({ microcycleSessions: 3 })).toBe(3)
-    expect(microcycleLength({})).toBe(6)
-    expect(microcycleLength({ microcycleSessions: 0 })).toBe(6)   // invalid falls back
-  })
-})
-
-describe('microcycleSeries', () => {
-  const many = Array.from({ length: 14 }, (_, i) =>
-    workout(`2026-09-${String(i + 1).padStart(2, '0')}`, [curl([set(2)])]))
-
-  it('blocks the history newest-first, the last block being the current microcycle', () => {
-    const series = microcycleSeries(many, 6)
-    // 14 sessions → blocks of 6: [1-2 partial], [3-8], [9-14]
-    expect(series.map(b => b.sessions)).toEqual([2, 6, 6])
-    expect(series[0].full).toBe(false)
-    expect(series.at(-1).full).toBe(true)
-    // The newest block equals the standalone microcycle volume.
-    expect(series.at(-1).groups).toEqual(microcycleVolume(many, 6).groups)
-  })
-
-  it('caps the number of blocks and carries a plot timestamp per block', () => {
-    const series = microcycleSeries(many, 2, 3)
-    expect(series.length).toBe(3)
-    expect(series.at(-1).t).toBe(Date.parse('2026-09-14T10:00:00'))
-  })
-
-  it('is empty for no history', () => {
-    expect(microcycleSeries([], 6)).toEqual([])
+  it('restarts at the block boundary instead of rolling', () => {
+    expect(cycleVolume(S(6)).sessions).toBe(0)      // block closed, next one empty
+    expect(cycleVolume(S(7)).sessions).toBe(1)
+    expect(cycleVolume(S(7)).groups.biceps).toBe(1)
   })
 })
 

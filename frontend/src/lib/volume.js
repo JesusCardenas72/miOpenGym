@@ -9,14 +9,16 @@
 //
 // The window is the microcycle, NOT the calendar week: for a Push/Pull/Legs split one
 // microcycle is two full rounds = 6 sessions, and six training days routinely spill past
-// seven calendar days, so counting by week would cut one microcycle in two. We count by
-// the most recent N completed sessions instead (see the periodizacion-microciclo note).
+// seven calendar days, so counting by week would cut one microcycle in two. Where the block
+// starts and ends is lib/microcycle.js's business; this file only adds its sets up. Volume
+// accumulates inside the block and restarts with the next one — it is not a rolling window.
 //
 // Grouping is deliberately per-set, taking the strongest involvement of any muscle in a
 // group rather than summing the group's muscles: a squat counts as one leg set, not as
 // quads + glutes + hamstrings stacked. Secondary muscles still earn partial credit (the
 // 0.4 weight from musclesOf), which is the usual way fractional volume is counted.
 
+import { cycleWorkouts } from './microcycle.js'
 import { musclesOf } from './muscles.js'
 import { EXIDX } from './exercises.js'
 import { rirOf } from './effort.js'
@@ -25,10 +27,6 @@ import { isWarmupRow } from './workout-model.js'
 // This project's volume threshold. Distinct from effort.js HARD_RIR (3), which labels a
 // set "hard" for the muscle map; this is the product decision for what counts as volume.
 export const EFFECTIVE_RIR = 4
-
-// Sessions in one microcycle by default — two PPL rounds. Overridable per profile via
-// S.microcycleSessions; see microcycleLength.
-export const DEFAULT_MICROCYCLE = 6
 
 // Effective-set target per muscle group per microcycle (the adaptive band from the note).
 export const VOLUME_TARGET = { min: 10, max: 20 }
@@ -58,12 +56,6 @@ const GROUP_OF = (() => {
 /** A completed work set that counts as volume: RIR <= 4, or unrated (counted, per product). */
 export const isEffectiveSet = s => { const r = rirOf(s); return r == null || r <= EFFECTIVE_RIR }
 
-/** How many sessions one microcycle spans for this profile. */
-export const microcycleLength = S => {
-  const n = Number(S && S.microcycleSessions)
-  return Number.isFinite(n) && n >= 1 ? Math.round(n) : DEFAULT_MICROCYCLE
-}
-
 // The muscle map a workout entry trains, resolving the same way loadOf does: a completed
 // entry may carry its own weighted snapshot (custom exercise since deleted); otherwise the
 // catalogue entry by id wins, then whatever metadata the entry itself holds.
@@ -71,15 +63,6 @@ function entryMuscles(entry) {
   const historical = entry.exercise || entry
   const source = historical && historical.muscleWeights ? historical : (EXIDX[entry.id] || historical)
   return musclesOf(source)
-}
-
-// Completed workouts are stored in append order, but sort defensively by their start/date.
-const byDate = (a, b) => (a.start || Date.parse(a.d) || 0) - (b.start || Date.parse(b.d) || 0)
-
-/** The most recent `sessions` completed workouts, oldest→newest (the current microcycle). */
-export function microcycleWorkouts(workouts, sessions = DEFAULT_MICROCYCLE) {
-  const all = (workouts || []).slice().sort(byDate)
-  return all.slice(Math.max(0, all.length - sessions))
 }
 
 /**
@@ -114,38 +97,13 @@ export function groupVolume(workouts, pick = isEffectiveSet) {
 }
 
 /**
- * Effective-set volume per muscle group over the current microcycle — the most recent
- * `sessions` completed workouts. `sessions` defaults to the project microcycle length.
+ * Effective-set volume per muscle group over the current microcycle — the sessions logged
+ * since the block opened (lib/microcycle.js). `sessions` says how many that is, so the UI
+ * can show the block filling up rather than implying the count is final.
  */
-export function microcycleVolume(workouts, sessions = DEFAULT_MICROCYCLE) {
-  const win = microcycleWorkouts(workouts, sessions)
+export function cycleVolume(S) {
+  const win = cycleWorkouts(S)
   return { ...groupVolume(win), sessions: win.length }
-}
-
-/**
- * A trend of past microcycles, oldest→newest: the completed workouts sliced into
- * consecutive non-overlapping blocks of `sessions` from the newest backwards, each reduced
- * to its per-group volume. `blocks` caps how many are returned. The newest block is the
- * current microcycle, so the last entry equals microcycleVolume; the oldest may be a
- * partial block when the history does not divide evenly, which is left as-is (it is real,
- * lighter, early data) and carries `full: false` so a caller can drop it if it prefers.
- * Each block carries `t`, the timestamp of its last workout, so it can plot on a date axis.
- */
-export function microcycleSeries(workouts, sessions = DEFAULT_MICROCYCLE, blocks = 8) {
-  const all = (workouts || []).slice().sort(byDate)
-  const out = []
-  for (let end = all.length; end > 0 && out.length < blocks; end -= sessions) {
-    const start = Math.max(0, end - sessions)
-    const win = all.slice(start, end)
-    const last = win[win.length - 1]
-    out.unshift({
-      ...groupVolume(win),
-      sessions: win.length,
-      full: win.length >= sessions,
-      t: last ? (last.start || Date.parse(last.d) || 0) : 0,
-    })
-  }
-  return out
 }
 
 /** Traffic-light status of a group's effective-set count against the target band. */

@@ -19,10 +19,9 @@ import {
   hasEffort, displayScale, scaleName, toScale, avgRir, effortSummary, effortWeeks,
   effortHistogram, isHardSet, HARD_RIR
 } from '../lib/effort.js'
-import {
-  VOLUME_GROUPS, VOLUME_TARGET, microcycleLength, microcycleWorkouts, microcycleVolume,
-  volumeStatus, volumeColor,
-} from '../lib/volume.js'
+import { cycleVolume } from '../lib/volume.js'
+import { cycleWorkouts, cyclePosition } from '../lib/microcycle.js'
+import VolumeGroupBars from '../components/VolumeGroupBars.jsx'
 import { Button, Segmented, SelectRow } from '../components/ui.jsx'
 import { tappable } from '../lib/use-sheet-keyboard.js'
 import { isWarmupRow } from '../lib/workout-model.js'
@@ -132,14 +131,10 @@ function MuscleBalance({ S }) {
   // "micro" is not a day count: it is the last N completed sessions (lib/volume.js), which
   // for a PPL split routinely spans more than a calendar week.
   const micro = win === 'micro'
-  const microSessions = microcycleLength(S)
-  const inWin = micro
-    ? microcycleWorkouts(S.workouts, microSessions)
-    : muscleBalanceWindow(S.workouts, win, now)
+  const inWin = micro ? cycleWorkouts(S) : muscleBalanceWindow(S.workouts, win, now)
   // Effective-set volume per group over that same microcycle, to read against the target band.
-  const microVol = useMemo(
-    () => (micro ? microcycleVolume(S.workouts, microSessions) : null),
-    [micro, S.workouts, microSessions])
+  const microVol = useMemo(() => (micro ? cycleVolume(S) : null), [micro, S])
+  const microPos = cyclePosition(S)
   // Counting only the sets taken near failure turns the map from "where did the volume go"
   // into "where did the stimulus go" — a muscle can lead on sets and still never be trained
   // hard. Offered only when the window holds ratings at all, since with none the hard map
@@ -167,37 +162,15 @@ function MuscleBalance({ S }) {
       </div>
       <Segmented className="seg-range" value={win} onChange={v => { setWin(v); setSel(null) }}
         options={[{ value: 'micro', label: t('Microcycle') }, { value: 7, label: t('Week') }, { value: 30, label: '30d' }, { value: 90, label: '90d' }, { value: 0, label: t('All') }]} />
-      {micro && inWin.length > 0 && <div className="muted small" style={{ marginTop: -4, marginBottom: 8 }}>
-        {t('Last {0} sessions', inWin.length)}
+      {micro && <div className="muted small" style={{ marginTop: -4, marginBottom: 8 }}>
+        {t('Microcycle')} #{microPos.cycle + 1} · {t('Session {0} of {1}', Math.min(microPos.step + 1, microPos.len), microPos.len)}
       </div>}
       {inWin.length ? <>
         <BodyMap className="tappable" load={load} body={S.body} selected={sel}
           onMuscle={m => setSel(s => (s === m ? null : m))} />
         <BodyMapLegend />
         {micro && microVol && <>
-          <h4 className="sec" style={{ marginTop: 14 }}>{t('Effective sets')}</h4>
-          <div className="muted small" style={{ marginBottom: 6 }}>
-            {t('Target {0}–{1} effective sets per muscle group each microcycle', VOLUME_TARGET.min, VOLUME_TARGET.max)}
-          </div>
-          {VOLUME_GROUPS.map(g => {
-            const v = Math.round((microVol.groups[g.key] || 0) * 10) / 10
-            const color = volumeColor(volumeStatus(v))
-            // The bar reads against the target, not against the best-worked group: full width
-            // is the top of the band, so a short bar means "short of 10", not "trained less".
-            return <div key={g.key} className="mrow">
-              <span className="nm">{t(g.name)}</span>
-              <span className="bar"><i style={{ width: Math.min(100, Math.round(v / VOLUME_TARGET.max * 100)) + '%', background: color }} /></span>
-              <span className="v" style={{ color }}>{t('{0} sets', fmtNum(v))}</span>
-            </div>
-          })}
-          <div className="vol-legend">
-            <span><i style={{ background: 'var(--orange)' }} />{t('under')} {VOLUME_TARGET.min}</span>
-            <span><i style={{ background: 'var(--green)' }} />{t('in range')} {VOLUME_TARGET.min}–{VOLUME_TARGET.max}</span>
-            <span><i style={{ background: 'var(--red)' }} />{t('over')} {VOLUME_TARGET.max}</span>
-          </div>
-          {microVol.unrated > 0 && <div className="small" style={{ color: 'var(--yellow)', marginTop: 8 }}>
-            {t('{0} of {1} sets without RIR — counted as effective', microVol.unrated, microVol.total)}
-          </div>}
+          <VolumeGroupBars vol={microVol} />
           {worked.length > 0 && <h4 className="sec" style={{ marginTop: 14 }}>{t('Muscle balance')}</h4>}
         </>}
         {sel && <div className="mrow" style={{ borderTop: 'var(--hair) solid var(--sep)', marginTop: 4, paddingTop: 10 }}>

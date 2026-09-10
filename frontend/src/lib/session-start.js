@@ -5,16 +5,20 @@
 // either imports this file, so there is no cycle.
 import { buildSets, applyIntensifierPlan } from './history.js'
 import { nextPrescription, applyPrescription, defaultIncrement } from './progression.js'
+import { applyDeload } from './mesocycle.js'
 
-export function buildSessionEntries(st, r) {
+export function buildSessionEntries(st, r, { deload = 0 } = {}) {
   // The prescription is applied as the session is built, so you walk up to the bar with the
   // right weight already on the screen instead of being told about it afterwards. `plan` is
   // kept on the entry purely so the workout can explain the number it chose.
-  const excluded = r?.excludeFromProgression === true
+  // A deload session is prescription-free for the same reason a deload routine is: its
+  // reduced numbers must not be read back as a stall, nor become the base to progress from.
+  const excluded = r?.excludeFromProgression === true || deload > 0
   const entries = (r ? r.ex : []).map(cfg => {
     const plan = excluded ? { policy: 'off', kind: 'off' } : nextPrescription(st, cfg, r)
     const step = defaultIncrement(cfg.id, st.unit)
-    const sets = applyIntensifierPlan(applyPrescription(buildSets(st, cfg, { step, useTarget: excluded }), plan, step), cfg)
+    const built = applyIntensifierPlan(applyPrescription(buildSets(st, cfg, { step, useTarget: excluded }), plan, step), cfg)
+    const sets = deload > 0 ? applyDeload(built, deload, step) : built
     return { id: cfg.id, sg: cfg.sg, target: { ...cfg }, plan, sets }
   })
   return { entries, excluded }

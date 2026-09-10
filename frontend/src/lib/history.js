@@ -3,6 +3,7 @@ import { todayISO, isoOf, weekKey, fmtNum } from './format.js'
 import { isCardio, isBodyweightEq } from './exercises.js'
 import { phaseForSet, modeForSet, modeForEntry, isWarmupRow, normalizeMode, extraVolumeOf, nextDropWeight, splitBurstReps } from './workout-model.js'
 import { programStep, REST } from './program.js'
+import { nextStepOf } from './microcycle.js'
 const objectOf = value => value && typeof value === 'object' && !Array.isArray(value) ? value : {}
 // Completed-state-independent work rows whose authoritative mode matches the requested mode.
 const workRowsForMode = (entry = {}, mode = 'reps') => {
@@ -284,10 +285,23 @@ export function effectiveRoutineId(S, iso) {
   // anchor. It fully drives the day then — a rest step is a rest day, and a step pointing at a
   // since-deleted routine reads as rest rather than falling back to the weekday plan.
   const step = programStep(S.program, iso)
-  if (step != null) return step === REST || !S.routines.some(r => r.id === step) ? null : step
+  if (step != null) {
+    if (step === REST) return null
+    // *Which* routine a training day is comes from the sequence pointer, which counts
+    // sessions rather than days (lib/microcycle.js), so a day skipped for rest does not skip
+    // a step of the microcycle. Only for today: past days are history, and future ones are
+    // still just the calendar projection.
+    const id = (iso === todayISO() && nextStepOf(S)) || step
+    return S.routines.some(r => r.id === id) ? id : null
+  }
   // Otherwise the classic weekly plan.
   const wd = new Date(iso + 'T12:00:00').getDay()
   return S.week[wd] || null
+}
+/** The routine the next session should be, wherever it falls — the pointer, resolved. */
+export function nextSessionRoutine(S) {
+  const id = nextStepOf(S)
+  return id ? S.routines.find(r => r.id === id) || null : null
 }
 export function effectiveRoutine(S, iso) {
   const id = effectiveRoutineId(S, iso)
