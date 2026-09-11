@@ -1,14 +1,13 @@
 import { create } from 'zustand'
 import { uid } from '../lib/format.js'
-import { beep, vibrate, playClips, stopClips, clipsDuration } from '../lib/sound.js'
-// The rest alert: a single boxing-bell ring. It is scheduled to *land* on zero rather than
-// start there — the end of the bell and the end of the rest are the same instant — so it
-// begins its own length before the timer runs out.
+import { beep, vibrate, playClips, stopClips, clipsDuration, setAudioFocusHooks } from '../lib/sound.js'
+// The rest alert: a single boxing-bell ring, or the audio file picked in Settings. It is
+// scheduled to *land* on zero rather than start there — the end of the sound and the end of the
+// rest are the same instant — so it begins its own length before the timer runs out.
 // (playClips takes a list because the alert used to be two separate files; a single-entry one
 // is the same call, and keeping the list means adding a second clip needs no new plumbing.)
-import restAlertClip from '../assets/boxing-bell-single_CORTO.mp3'
-
-const REST_ALERT_CLIPS = [restAlertClip]
+import { restAlertClips, loadCustomSound } from '../lib/custom-sound.js'
+import { MOBILE, duckOtherAudio, releaseOtherAudio } from '../lib/mobile.js'
 import { api } from '../lib/api.js'
 import { t } from '../lib/i18n.js'
 import { useStore } from './useStore.js'
@@ -54,6 +53,11 @@ const maybeRestNotification = async () => {
   }
 }
 
+// Read the saved custom sound up front so the first rest already knows which clip to measure.
+loadCustomSound()
+// Native Android: duck the user's music while the alert plays and give it back afterwards.
+if (MOBILE) setAudioFocusHooks({ acquire: duckOtherAudio, release: releaseOtherAudio })
+
 let toastTm = null
 let clipTm = null
 let timerInt = null
@@ -71,7 +75,9 @@ let workDone = null
    only place the start to the nearest second and the whole point here is that it lands. */
 const scheduleRestAlert = endsAt => {
   cancelRestAlert()
-  clipsDuration(REST_ALERT_CLIPS).then(total => {
+  // Resolved once per rest, so the clip measured is the clip played even if Settings swaps it.
+  const clips = restAlertClips()
+  clipsDuration(clips).then(total => {
     // Reading the metadata is asynchronous; by the time it lands this rest may have been
     // skipped, restarted or re-timed, and that newer rest owns the schedule now.
     const tm = useUI.getState().timer
@@ -79,7 +85,7 @@ const scheduleRestAlert = endsAt => {
     const fire = () => {
       clipTm = null
       // The setting is read now, not when the rest started, so muting mid-rest is respected.
-      playClips(useStore.getState().S.sound, REST_ALERT_CLIPS)
+      playClips(useStore.getState().S.sound, clips)
     }
     // A rest shorter than the alert — or one trimmed under it with "−" — starts it at once:
     // finishing late is the only option left, and silence would be the worse one. A total of
@@ -98,8 +104,9 @@ function cancelRestAlert() {
 export const useUI = create((set, get) => ({
   sheets: [],          // { id, render:(close)=>JSX, kind:'sheet'|'center', locked }
   toastMsg: '',
-  timer: null,         // rest countdown between sets — { left, total, endsAt, forIdx }
+  timer: null,         // rest countdown between sets — { left, total, endsAt, forIdx, kind }
                        // forIdx: index of the active entry whose set started the rest (undefined when unknown)
+                       // kind: 'sets' (between two sets) | 'exercise' (after an exercise is finished)
   work: null,          // work countdown DURING a timed set (issue #16) — { left, total, endsAt, label }
   timerFlashId: 0,     // changing the id remounts the four-pulse visual alert
 
@@ -123,7 +130,7 @@ export const useUI = create((set, get) => ({
     toastTm = setTimeout(() => set({ toastMsg: '' }), 2200)
   },
 
-  startRest(sec, forIdx) {
+  startRest(sec, forIdx, kind = 'sets') {
     get().stopRest()
     // The previous rest's alert may still be ringing — a new set has started, so cut it.
     // This is the only place that stops it: stopRest() runs immediately after the alert
@@ -133,7 +140,7 @@ export const useUI = create((set, get) => ({
     // keeps every caller honest: the four places that start a rest do not each need to know.
     if (!(sec > 0)) return
     const endsAt = Date.now() + sec * 1000
-    set({ timer: { left: sec, total: sec, endsAt, forIdx } })
+    set({ timer: { left: sec, total: sec, endsAt, forIdx, kind } })
     requestRestNotificationPermission()
     pushRestTimer(sec)
     scheduleRestAlert(endsAt)

@@ -14,15 +14,19 @@ export default function VolumeGroupBars({ vol, title }) {
     <div className="muted small" style={{ marginBottom: 6 }}>
       {t('Target {0}–{1} effective sets per muscle group each microcycle', VOLUME_TARGET.min, VOLUME_TARGET.max)}
     </div>
-    {VOLUME_GROUPS.map(g => {
-      const v = Math.round((vol.groups[g.key] || 0) * 10) / 10
-      const color = volumeColor(volumeStatus(v))
-      return <div key={g.key} className="mrow">
-        <span className="nm">{t(g.name)}</span>
-        <span className="bar"><i style={{ width: Math.min(100, Math.round(v / VOLUME_TARGET.max * 100)) + '%', background: color }} /></span>
-        <span className="v" style={{ color }}>{t('{0} sets', fmtNum(v))}</span>
-      </div>
-    })}
+    {/* One grid for all rows, so name, bar and count line up as columns: the name and count
+        columns size to their widest entry and every bar takes the same remaining width. */}
+    <div className="vol-bars">
+      {VOLUME_GROUPS.map(g => {
+        const v = Math.round((vol.groups[g.key] || 0) * 10) / 10
+        const color = volumeColor(volumeStatus(v))
+        return <div key={g.key} className="vol-bar-row">
+          <span className="nm">{t(g.short || g.name)}</span>
+          <span className="bar"><i style={{ width: Math.min(100, Math.round(v / VOLUME_TARGET.max * 100)) + '%', background: color }} /></span>
+          <span className="v" style={{ color }}>{t('{0} sts', fmtNum(v))}</span>
+        </div>
+      })}
+    </div>
     <div className="vol-legend">
       <span><i style={{ background: 'var(--orange)' }} />{t('under')} {VOLUME_TARGET.min}</span>
       <span><i style={{ background: 'var(--green)' }} />{t('in range')} {VOLUME_TARGET.min}–{VOLUME_TARGET.max}</span>

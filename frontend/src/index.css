@@ -1067,6 +1067,14 @@ h4.sec{
 .vol-spark{margin-top:3px}
 .vol-spark svg{display:block;width:100%;height:38px}
 .vol-spark .empty{font-size:11px;padding:10px 0;text-align:center}
+/* effective-set bars per group: rows share one grid (display:contents) so the columns align */
+.vol-bars{display:grid;grid-template-columns:max-content minmax(0,1fr) max-content;
+  align-items:center;column-gap:10px;row-gap:10px;padding:4px 0}
+.vol-bar-row{display:contents}
+.vol-bars .nm{font-size:14px;white-space:nowrap}
+.vol-bars .bar{height:6px;border-radius:3px;background:var(--surface-2);overflow:hidden}
+.vol-bars .bar i{display:block;height:100%;border-radius:3px}
+.vol-bars .v{font-size:12px;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
 .vol-legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px}
 .vol-legend span{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;color:var(--label-2)}
 .vol-legend i{width:9px;height:9px;border-radius:99px;display:inline-block}

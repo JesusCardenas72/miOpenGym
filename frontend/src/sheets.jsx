@@ -29,7 +29,7 @@ import { seedConfig, changedGlobals, applyGlobals, isGlobalField, GLOBAL_LABEL }
 import { MOBILE, shareExport } from './lib/mobile.js'
 import { buildCompletedWorkout } from './lib/finish-workout.js'
 import { isWarmupRow } from './lib/workout-model.js'
-import { nextUnfinishedUnit } from './lib/supersetFlow.js'
+import { nextUnfinishedUnit, unitEntryIdx } from './lib/supersetFlow.js'
 import { swapActiveExercise } from './lib/active-exercise-swap.js'
 import { useSheetKeyboard, useRevealActiveChip, tappable } from './lib/use-sheet-keyboard.js'
 import { buildSessionEntries } from './lib/session-start.js'
@@ -1724,7 +1724,7 @@ function TopWeight({ entryIdx, close }) {
     close()
     if (advance && unitDone) {
       if (workoutDone) workoutCompleteSheet()               // no unfinished unit → finish/continue prompt
-      else update(s => { s.active.cur = nextUnit[0] })
+      else update(s => { s.active.cur = unitEntryIdx(s.active.entries, nextUnit) })
     } else toast(t('Tracked — next time starts at {0}', fmtNum(S().exWeights[entry.id].w) + ' ' + st.unit))
   }
   return <>

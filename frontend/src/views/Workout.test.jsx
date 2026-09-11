@@ -204,7 +204,7 @@ describe('Workout set completion flow', () => {
     await toggleSet(0)
 
     expect(mocks.startRest).toHaveBeenCalledOnce()
-    expect(mocks.startRest).toHaveBeenCalledWith(90, expect.any(Number))
+    expect(mocks.startRest).toHaveBeenCalledWith(90, expect.any(Number), expect.any(String))
     expect(mocks.stopRest).not.toHaveBeenCalled()
 
     await unmount()
@@ -258,6 +258,33 @@ describe('Workout set completion flow', () => {
     expect(mocks.startRest).not.toHaveBeenCalled()
   })
 
+  it('keeps a superset on its warm-ups before handing over to the linked work sets', async () => {
+    await mount([
+      exercise('warmed', [false, false, false, false], {
+        sg: 'group', asked: true,
+        sets: [
+          { w: 20, r: 5, done: false, phase: 'warmup' },
+          { w: 40, r: 5, done: false, phase: 'warmup' },
+          { w: 60, r: 5, done: false },
+          { w: 60, r: 5, done: false },
+        ],
+      }),
+      exercise('cold', [false, false], { sg: 'group', asked: true }),
+    ], 0)
+
+    // A warm-up never jumps to the other member's work set.
+    await toggleSetOf(0, 0)
+    expect(mocks.S.active.cur).toBe(0)
+    await rerender()
+    // The last warm-up hands over to the work phase, starting from the group's first member.
+    await toggleSetOf(0, 1)
+    expect(mocks.S.active.cur).toBe(0)
+    await rerender()
+    // From there the ordinary alternation applies.
+    await toggleSetOf(0, 2)
+    expect(mocks.S.active.cur).toBe(1)
+  })
+
   it('does not start transition rest before a warm-up while top-weight confirmation owns navigation', async () => {
     await mount([
       exercise('current-loaded', [false]),
@@ -309,7 +336,134 @@ describe('Workout set completion flow', () => {
 
     expect(mocks.topWeightSheet).toHaveBeenCalledWith(1)
     expect(mocks.S.active.cur).toBe(1)
-    expect(mocks.startRest).toHaveBeenCalledWith(90, expect.any(Number))
+    expect(mocks.startRest).toHaveBeenCalledWith(90, expect.any(Number), expect.any(String))
+  })
+
+  // Rest between exercises (lib/rest-between.js): once an exercise is finished and another one
+  // follows, the break takes the workout's choice, else the Settings one, else the set rest.
+  describe('rest between exercises', () => {
+    it('uses the Settings time after the closing set of an exercise', async () => {
+      await mount([
+        exercise('current', [true, true, false], { asked: true }),
+        exercise('next', [false, false]),
+      ], 0, { restExSec: 180 })
+      await toggleSetOf(0, 2)
+      expect(mocks.S.active.cur).toBe(1)
+      expect(mocks.startRest).toHaveBeenCalledWith(180, expect.any(Number), expect.any(String))
+    })
+
+    it('leaves the rest between two sets of the same exercise alone', async () => {
+      await mount([
+        exercise('current', [false, false, false], { asked: true }),
+        exercise('next', [false, false]),
+      ], 0, { restExSec: 180 })
+      await toggleSet(0)
+      expect(mocks.startRest).toHaveBeenCalledWith(90, expect.any(Number), expect.any(String))
+    })
+
+    it('lets the running workout override Settings', async () => {
+      await mount([
+        exercise('current', [false], { asked: true }),
+        exercise('next', [false]),
+      ], 0, { restExSec: 180, active: { restExSec: 45 } })
+      await toggleSet(0)
+      expect(mocks.startRest).toHaveBeenCalledWith(45, expect.any(Number), expect.any(String))
+    })
+
+    it('goes back to the between-sets rest when the workout chooses it over a Settings time', async () => {
+      await mount([
+        exercise('current', [false], { asked: true }),
+        exercise('next', [false]),
+      ], 0, { restExSec: 180, active: { restExSec: 'sets' } })
+      await toggleSet(0)
+      expect(mocks.startRest).toHaveBeenCalledWith(90, expect.any(Number), expect.any(String))
+    })
+
+    it('applies when a superset is finished, but not between its rounds', async () => {
+      await mount([
+        exercise('superset-a', [true, true], { sg: 'g', asked: true }),
+        exercise('superset-b', [true, false], { sg: 'g', asked: true }),
+        exercise('next-exercise', [false]),
+      ], 1, { restExSec: 200 })
+      await toggleSetOf(1, 1)
+      expect(mocks.S.active.cur).toBe(2)
+      expect(mocks.startRest).toHaveBeenCalledWith(200, expect.any(Number), expect.any(String))
+
+      await unmount()
+      vi.clearAllMocks()
+      await mount([
+        exercise('superset-a', [true, false], { sg: 'g', asked: true }),
+        exercise('superset-b', [false, false], { sg: 'g', asked: true }),
+        exercise('next-exercise', [false]),
+      ], 1, { restExSec: 200 })
+      await toggleSetOf(1, 0)
+      expect(mocks.startRest).toHaveBeenCalledWith(90, expect.any(Number), expect.any(String))
+    })
+
+    it('shows the chip with the current choice, and only when there is a next exercise', async () => {
+      await mount([exercise('a', [false]), exercise('b', [false])], 0, { restExSec: 120 })
+      expect(container.querySelector('[data-testid="rest-ex"]').textContent).toContain('120s')
+
+      await unmount()
+      await mount([exercise('a', [false]), exercise('b', [false])], 0, { restExSec: 120, active: { restExSec: 'sets' } })
+      expect(container.querySelector('[data-testid="rest-ex"]').textContent).toContain('like sets')
+
+      await unmount()
+      await mount([exercise('only', [false])])
+      expect(container.querySelector('[data-testid="rest-ex"]')).toBe(null)
+    })
+
+    // Re-checking the closing set while the rest from the set before it is still counting: that
+    // between-sets rest must not run out first and then add the between-exercises one on top.
+    it('replaces a running between-sets rest when the closing set is re-checked', async () => {
+      await mount([
+        exercise('current', [true, true, true], { asked: true }),
+        exercise('next', [false]),
+      ], 0, { restExSec: 180 })
+      mocks.timer = { left: 40, total: 90, endsAt: Date.now() + 40_000, forIdx: 0, kind: 'sets' }
+      await toggleSetOf(0, 2)   // uncheck
+      await rerender()
+      await toggleSetOf(0, 2)   // check again
+      expect(mocks.startRest).toHaveBeenCalledOnce()
+      expect(mocks.startRest).toHaveBeenCalledWith(180, expect.any(Number), 'exercise')
+    })
+
+    it('leaves a running rest alone on a re-check when there is no separate time', async () => {
+      await mount([
+        exercise('current', [true, true, true], { asked: true }),
+        exercise('next', [false]),
+      ])
+      mocks.timer = { left: 40, total: 90, endsAt: Date.now() + 40_000, forIdx: 0, kind: 'sets' }
+      await toggleSetOf(0, 2)
+      await rerender()
+      await toggleSetOf(0, 2)
+      expect(mocks.startRest).not.toHaveBeenCalled()
+    })
+
+    it('does not restart a between-exercises rest that is already counting', async () => {
+      await mount([
+        exercise('current', [true, true, true], { asked: true }),
+        exercise('next', [false]),
+      ], 0, { restExSec: 180 })
+      mocks.timer = { left: 100, total: 180, endsAt: Date.now() + 100_000, forIdx: 0, kind: 'exercise' }
+      await toggleSetOf(0, 2)
+      await rerender()
+      await toggleSetOf(0, 2)
+      expect(mocks.startRest).not.toHaveBeenCalled()
+    })
+
+    it('tags the closing-set rest as between exercises and the others as between sets', async () => {
+      await mount([
+        exercise('current', [false, false], { asked: true }),
+        exercise('next', [false]),
+      ], 0, { restExSec: 180 })
+      await toggleSetOf(0, 0)
+      expect(mocks.startRest).toHaveBeenLastCalledWith(90, expect.any(Number), 'sets')
+      await rerender()
+      await toggleSetOf(0, 1)
+      expect(mocks.startRest).toHaveBeenCalledTimes(2)
+      expect(mocks.startRest).toHaveBeenLastCalledWith(180, expect.any(Number), 'exercise')
+    })
   })
 
   it('skips completed intervening units and selects the next unfinished superset as one unit', async () => {
@@ -325,7 +479,7 @@ describe('Workout set completion flow', () => {
     expect(mocks.S.active.cur).toBe(2)
     expect(mocks.workoutCompleteSheet).not.toHaveBeenCalled()
     expect(mocks.toast).toHaveBeenCalledWith('Hold logged')
-    expect(mocks.startRest).toHaveBeenCalledWith(90, expect.any(Number))
+    expect(mocks.startRest).toHaveBeenCalledWith(90, expect.any(Number), expect.any(String))
   })
 
   it('wraps to earlier unfinished work instead of showing a false completion prompt', async () => {
@@ -338,7 +492,7 @@ describe('Workout set completion flow', () => {
 
     expect(mocks.S.active.cur).toBe(0)
     expect(mocks.workoutCompleteSheet).not.toHaveBeenCalled()
-    expect(mocks.startRest).toHaveBeenCalledWith(90, expect.any(Number))
+    expect(mocks.startRest).toHaveBeenCalledWith(90, expect.any(Number), expect.any(String))
   })
 
   it('keeps top-weight confirmation in control without declaring completion while work remains', async () => {
@@ -578,7 +732,7 @@ describe('superset flow survives an exercise being removed mid-session', () => {
 
     // Partner closes the round (each still has a second set), which is what starts the rest.
     await toggleSetOf(1, 0)
-    expect(mocks.startRest).toHaveBeenCalledWith(90, expect.any(Number))
+    expect(mocks.startRest).toHaveBeenCalledWith(90, expect.any(Number), expect.any(String))
   })
 })
 

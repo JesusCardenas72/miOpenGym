@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { insertionIndexAfterCurrentUnit, nextUnfinishedUnit, setProgressHighWater, supersetFlowStep, restAfterSet, restOnRecheck, restSecFor } from './supersetFlow.js'
+import { insertionIndexAfterCurrentUnit, nextUnfinishedUnit, setProgressHighWater, supersetFlowStep, restAfterSet, restOnRecheck, restSecFor, unitEntryIdx } from './supersetFlow.js'
 
 const entry = done => ({ sets: done.map(value => ({ done: value })) })
 
@@ -52,6 +52,65 @@ describe('supersetFlowStep', () => {
   })
 })
 
+// Rows as [done, phase]: 'w' is a warm-up, anything else a work set.
+const phased = rows => ({ sets: rows.map(([done, phase]) => ({ done, phase: phase === 'w' ? 'warmup' : 'work' })) })
+
+describe('supersetFlowStep with warm-ups', () => {
+  it('stays on the only member with warm-ups instead of jumping to another member’s work set', () => {
+    // A: 2 warm-ups + 2 work sets, first warm-up just done. B: 2 work sets, no warm-ups.
+    const entries = [phased([[true, 'w'], [false, 'w'], [false], [false]]), phased([[false], [false]])]
+    expect(supersetFlowStep(entries, [0, 1], 0, 0)).toEqual({ unitDone: false, roundDone: true, nextIdx: 0 })
+  })
+
+  it('starts the work phase at the first member once the last warm-up is done', () => {
+    const entries = [phased([[false], [false]]), phased([[true, 'w'], [true, 'w'], [false], [false]])]
+    expect(supersetFlowStep(entries, [0, 1], 1, 1)).toEqual({ unitDone: false, roundDone: true, nextIdx: 0 })
+  })
+
+  it('alternates between members that both have warm-ups', () => {
+    // A: 2 warm-ups, B: 1 warm-up, C: none.
+    const entries = [
+      phased([[true, 'w'], [false, 'w'], [false]]),
+      phased([[false, 'w'], [false]]),
+      phased([[false]]),
+    ]
+    expect(supersetFlowStep(entries, [0, 1, 2], 0, 0)).toEqual({ unitDone: false, roundDone: false, nextIdx: 1 })
+    entries[1].sets[0].done = true
+    // B has no warm-up left and C never had one: back to A’s second warm-up, not C’s work set.
+    expect(supersetFlowStep(entries, [0, 1, 2], 1, 0)).toEqual({ unitDone: false, roundDone: true, nextIdx: 0 })
+    entries[0].sets[1].done = true
+    expect(supersetFlowStep(entries, [0, 1, 2], 0, 1)).toEqual({ unitDone: false, roundDone: true, nextIdx: 0 })
+  })
+
+  it('sends a work set done out of turn back to the warm-ups still pending', () => {
+    const entries = [phased([[true]]), phased([[false, 'w'], [false]])]
+    expect(supersetFlowStep(entries, [0, 1], 0, 0)).toEqual({ unitDone: false, roundDone: false, nextIdx: 1 })
+  })
+
+  it('keeps the ordinary flow once every warm-up is done', () => {
+    const entries = [phased([[true, 'w'], [true], [false]]), phased([[false], [false]])]
+    expect(supersetFlowStep(entries, [0, 1], 0, 1)).toEqual({ unitDone: false, roundDone: false, nextIdx: 1 })
+  })
+})
+
+describe('unitEntryIdx', () => {
+  it('lands on the first member with a warm-up left, even if it is not the first member', () => {
+    const entries = [phased([[false]]), phased([[false, 'w'], [false]])]
+    expect(unitEntryIdx(entries, [0, 1])).toBe(1)
+  })
+
+  it('lands on the first member with work when no warm-up is pending', () => {
+    expect(unitEntryIdx([phased([[true]]), phased([[false]])], [0, 1])).toBe(1)
+    expect(unitEntryIdx([phased([[false]]), phased([[false]])], [0, 1])).toBe(0)
+  })
+
+  it('falls back to the first member of a spent or unknown unit', () => {
+    expect(unitEntryIdx([phased([[true]])], [0])).toBe(0)
+    expect(unitEntryIdx(undefined, [3])).toBe(3)
+    expect(unitEntryIdx([], [])).toBeNull()
+  })
+})
+
 describe('active workout unit ordering', () => {
   it('inserts after the whole current unit', () => {
     expect(insertionIndexAfterCurrentUnit([[0, 1], [2]], 0, 3)).toBe(2)
@@ -90,6 +149,28 @@ describe('rest on a re-check', () => {
 
   it('rests after closing an exercise that is not the last one', () => {
     expect(restOnRecheck({ timerRunning: false, unitDone: true, lastUnit: false })).toBe(true)
+  })
+
+  // A between-sets rest still counting when the closing set is re-checked must give way to a
+  // separate between-exercises time — otherwise the two breaks stack.
+  it('replaces a running between-sets rest when the exercise closes and has its own rest', () => {
+    expect(restOnRecheck({ timerRunning: true, runningKind: 'sets', unitDone: true, lastUnit: false, exRestDiffers: true })).toBe(true)
+  })
+
+  it('keeps the running rest when there is no separate between-exercises time', () => {
+    expect(restOnRecheck({ timerRunning: true, runningKind: 'sets', unitDone: true, lastUnit: false, exRestDiffers: false })).toBe(false)
+  })
+
+  it('does not restart a between-exercises rest that is already counting', () => {
+    expect(restOnRecheck({ timerRunning: true, runningKind: 'exercise', unitDone: true, lastUnit: false, exRestDiffers: true })).toBe(false)
+  })
+
+  it('never replaces a running rest between sets of an exercise that is not finished', () => {
+    expect(restOnRecheck({ timerRunning: true, runningKind: 'sets', unitDone: false, lastUnit: false, exRestDiffers: true })).toBe(false)
+  })
+
+  it('stays quiet at the end of the session even with a separate time', () => {
+    expect(restOnRecheck({ timerRunning: true, runningKind: 'sets', unitDone: true, lastUnit: true, exRestDiffers: true })).toBe(false)
   })
 })
 

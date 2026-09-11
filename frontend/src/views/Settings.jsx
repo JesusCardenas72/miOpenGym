@@ -14,6 +14,59 @@ import { ConnectSheet } from './MobileOnboarding.jsx'
 import { loadStarterPlan, confirmSheet, importFromApp, importFromHevy, equipmentProfileSheet } from '../sheets.jsx'
 import Icon from '../components/Icon.jsx'
 import { Section, Row, SelectRow, Switch, Segmented, Button, TextField } from '../components/ui.jsx'
+import { customSoundName, loadCustomSound, saveCustomSound, clearCustomSound, customSoundProblem, restAlertClips, MAX_SOUND_BYTES, MAX_SOUND_SECONDS } from '../lib/custom-sound.js'
+import { playClips, stopClips } from '../lib/sound.js'
+import { REST_EX_PRESETS, restExLabel, settingChoice } from '../lib/rest-between.js'
+
+/* Rest-end sound: the bundled bell or a file from this device (lib/custom-sound.js). The file
+   is checked before it is kept — a clip the browser cannot decode, or one long enough to start
+   ringing the moment a rest begins, is refused with a toast rather than saved and silent. */
+function RestSoundSheet({ close, onChanged, toast }) {
+  const [name, setName] = useState(customSoundName())
+  const [busy, setBusy] = useState(false)
+  const fileRef = useRef(null)
+  // A preview still playing when the sheet closes is cut with it.
+  useEffect(() => () => stopClips(), [])
+  const problemText = p => ({
+    'not-audio': t('That file isn’t an audio file.'),
+    'too-big': t('That file is too big — up to {0} MB.', MAX_SOUND_BYTES / 1024 / 1024),
+    'too-long': t('That sound is too long — up to {0} seconds.', MAX_SOUND_SECONDS),
+  })[p] || t('Couldn’t read that audio file.')
+  const pick = async ev => {
+    const file = ev.target.files && ev.target.files[0]
+    ev.target.value = ''   // picking the same file again must fire change again
+    if (!file) return
+    setBusy(true)
+    try {
+      const problem = await customSoundProblem(file)
+      if (problem) { toast(problemText(problem)); return }
+      stopClips()
+      const saved = await saveCustomSound(file)
+      setName(saved); onChanged(saved); toast(t('Sound updated'))
+    } catch (e) {
+      toast(t('Couldn’t save the sound on this device.'))
+    } finally { setBusy(false) }
+  }
+  const reset = async () => {
+    try { stopClips(); await clearCustomSound() } catch (e) { toast(t('Couldn’t save the sound on this device.')); return }
+    setName(null); onChanged(null); toast(t('Default bell restored'))
+  }
+  return <>
+    <h3>{t('Rest-end sound')}</h3>
+    <p className="muted small" style={{ marginTop: -4, marginBottom: 12 }}>
+      {t('Stored on this device only. Up to {0} seconds — it plays so that it ends exactly when the rest does.', MAX_SOUND_SECONDS)}
+    </p>
+    <div className="sect-b">
+      <Row icon="bell" iconTint="var(--pink)" title={name || t('Boxing bell')} subtitle={t('Tap to preview')}
+        onClick={() => playClips(true, restAlertClips())} />
+      <Row icon="upload" iconTint="var(--blue)" title={t('Choose audio file')} accessory="chevron"
+        onClick={() => { if (!busy) fileRef.current.click() }} />
+      {name && <Row icon="reset" iconTint="var(--orange)" title={t('Use the default bell')} onClick={reset} />}
+    </div>
+    <input ref={fileRef} type="file" accept="audio/*" hidden onChange={pick} />
+    <div style={{ height: 8 }} />
+  </>
+}
 
 export default function Settings() {
   const nav = useNavigate()
@@ -24,6 +77,12 @@ export default function Settings() {
   const fileRef = useRef(null)
   const importRef = useRef(null)
   const wakeOK = wakeLockSupported()
+  const [soundName, setSoundName] = useState(customSoundName())
+  useEffect(() => {
+    let live = true
+    loadCustomSound().then(n => { if (live) setSoundName(n) })
+    return () => { live = false }
+  }, [])
 
   const doExport = async () => {
     const json = JSON.stringify(S, null, 2)
@@ -140,6 +199,15 @@ export default function Settings() {
       <SelectRow icon="timer" iconTint="var(--orange)" title={t('Rest timer')}
         value={S.restSec} onChange={v => update(s => { s.restSec = v })}
         options={[{ value: 0, label: t('Off') }, ...[60, 90, 120, 150, 180].map(v => ({ value: v, label: v + 's' }))]} />
+      {/* The break after an exercise's last set, before the next exercise. "Same as between
+          sets" keeps the old behaviour; a running workout can override this from its own screen. */}
+      <SelectRow icon="timer" iconTint="var(--teal)" title={t('Rest between exercises')}
+        value={settingChoice(S.restExSec)} onChange={v => update(s => { s.restExSec = v === 'sets' ? null : v })}
+        options={[
+          { value: 'sets', label: restExLabel('sets', t) },
+          { value: 0, label: restExLabel(0, t) },
+          ...REST_EX_PRESETS.map(v => ({ value: v, label: restExLabel(v, t) })),
+        ]} />
       {/* Default for a rest-pause burst added live on a plain set — a planned exercise's own
           "Rest (s)" (in its Intensifier config) overrides this, same as the main rest timer
           is the fallback whenever an exercise has no progression rule of its own. */}
@@ -165,6 +233,8 @@ export default function Settings() {
       <Row icon="bell" iconTint="var(--pink)" title={t('Sounds')}>
         <Switch checked={!!S.sound} onChange={v => update(s => { s.sound = v })} />
       </Row>
+      <Row icon="bell" iconTint="var(--purple)" title={t('Rest-end sound')} value={soundName || t('Boxing bell')} accessory="chevron"
+        onClick={() => useUI.getState().openSheet(close => <RestSoundSheet close={close} onChanged={setSoundName} toast={toast} />)} />
       <Row icon="sun" iconTint="var(--yellow)" title={t('Flash screen when timer ends')}>
         <Switch checked={!!S.timerFlash} onChange={v => update(s => { s.timerFlash = v })} />
       </Row>

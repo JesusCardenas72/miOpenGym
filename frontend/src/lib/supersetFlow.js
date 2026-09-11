@@ -1,6 +1,9 @@
 // Pure decisions for the active-workout superset flow. Keeping these independent of React and
 // the stores makes the uneven-round and re-check rules explicit and directly testable.
+import { isWarmupRow } from './workout-model.js'
+
 const hasWork = (entries, idx) => !!entries[idx]?.sets?.some(set => !set.done)
+const hasWarmupLeft = (entries, idx) => !!entries[idx]?.sets?.some(set => !set.done && isWarmupRow(set))
 
 // Return the first unfinished navigation unit after the current one, wrapping once so a user
 // who completed units out of order is never offered workout completion while earlier work remains.
@@ -58,9 +61,16 @@ export function restAfterSet({ unitDone, lastUnit }) {
  *
  * So: fill a gap, never disturb a rest that is already counting down. A timer that is running
  * belongs to the set you finished most recently, which is a better answer than restarting it.
+ *
+ * One exception. When the re-check finishes the exercise, a separate rest-between-exercises time
+ * exists (`exRestDiffers`) and the rest still counting is a between-sets one, that rest is the
+ * wrong break: the two must not stack, so it is replaced by the between-exercises rest rather
+ * than left to run out first. With no separate time the rest counting is already the right one.
  */
-export function restOnRecheck({ timerRunning, unitDone, lastUnit }) {
-  return !timerRunning && restAfterSet({ unitDone, lastUnit })
+export function restOnRecheck({ timerRunning, unitDone, lastUnit, runningKind = 'sets', exRestDiffers = false }) {
+  if (!restAfterSet({ unitDone, lastUnit })) return false
+  if (!timerRunning) return true
+  return !!unitDone && exRestDiffers && runningKind !== 'exercise'
 }
 
 /**
@@ -89,10 +99,32 @@ export function restSecFor(entries, unit, defaultRestSec) {
   }, 0)
 }
 
-// Decide where a newly completed superset set goes next. Spent members are skipped, including
-// across the wrap. A round ends when no later member in display order has work left; this makes
-// the last *active* member the boundary rather than blindly using the group's last array index.
-export function supersetFlowStep(entries, unit, fromIdx) {
+/**
+ * The member of a unit to land on when the session moves into it: the first one with a warm-up
+ * still to do, else the first one with any set left, else the first member. Landing on a work
+ * set while a linked exercise has not warmed up yet would start the group in the wrong phase.
+ */
+export function unitEntryIdx(entries, unit) {
+  if (!Array.isArray(unit) || unit.length === 0) return null
+  if (!Array.isArray(entries)) return unit[0]
+  return unit.find(idx => hasWarmupLeft(entries, idx))
+    ?? unit.find(idx => hasWork(entries, idx))
+    ?? unit[0]
+}
+
+/**
+ * Decide where a newly completed superset set goes next. Spent members are skipped, including
+ * across the wrap. A round ends when no later member in display order has work left; this makes
+ * the last *active* member the boundary rather than blindly using the group's last array index.
+ *
+ * Warm-ups and work sets are separate phases of the group. While any member still has a warm-up
+ * to do, only warm-ups count as work: a member without warm-ups is skipped rather than having
+ * one exercise's work set wedged between another's warm-ups, and several members with warm-ups
+ * still alternate among themselves. Once the last warm-up is done the work phase starts a fresh
+ * round from its first member. `setIdx` is the row just completed in `entries[fromIdx]`; without
+ * it that hand-over cannot be told apart from an ordinary work set.
+ */
+export function supersetFlowStep(entries, unit, fromIdx, setIdx) {
   if (!Array.isArray(entries) || !Array.isArray(unit) || unit.length <= 1) return null
   const pos = unit.indexOf(fromIdx)
   if (pos < 0) return null
@@ -100,8 +132,16 @@ export function supersetFlowStep(entries, unit, fromIdx) {
   const unitDone = !unit.some(idx => hasWork(entries, idx))
   if (unitDone) return { unitDone: true, roundDone: false, nextIdx: null }
 
+  const warmupPhase = unit.some(idx => hasWarmupLeft(entries, idx))
+  const pending = warmupPhase ? hasWarmupLeft : hasWork
+
+  const completed = entries[fromIdx]?.sets?.[setIdx]
+  if (!warmupPhase && completed && isWarmupRow(completed)) {
+    return { unitDone: false, roundDone: true, nextIdx: unit.find(idx => hasWork(entries, idx)) ?? null }
+  }
+
   const wrapped = [...unit.slice(pos + 1), ...unit.slice(0, pos + 1)]
-  const nextIdx = wrapped.find(idx => hasWork(entries, idx)) ?? null
-  const roundDone = !unit.slice(pos + 1).some(idx => hasWork(entries, idx))
+  const nextIdx = wrapped.find(idx => pending(entries, idx)) ?? null
+  const roundDone = !unit.slice(pos + 1).some(idx => pending(entries, idx))
   return { unitDone: false, roundDone, nextIdx }
 }

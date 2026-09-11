@@ -161,7 +161,7 @@ function MuscleBalance({ S }) {
           onClick={() => { setHard(h => !h); setSel(null) }}>{on ? t('Hard') : t('All')}</Button>}
       </div>
       <Segmented className="seg-range" value={win} onChange={v => { setWin(v); setSel(null) }}
-        options={[{ value: 'micro', label: t('Microcycle') }, { value: 7, label: t('Week') }, { value: 30, label: '30d' }, { value: 90, label: '90d' }, { value: 0, label: t('All') }]} />
+        options={[{ value: 'micro', label: t('Micro') }, { value: 7, label: t('Wk') }, { value: 30, label: '30d' }, { value: 90, label: '90d' }, { value: 0, label: t('All') }]} />
       {micro && <div className="muted small" style={{ marginTop: -4, marginBottom: 8 }}>
         {t('Microcycle')} #{microPos.cycle + 1} · {t('Session {0} of {1}', Math.min(microPos.step + 1, microPos.len), microPos.len)}
       </div>}

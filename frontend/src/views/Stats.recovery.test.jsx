@@ -220,7 +220,7 @@ describe('Stats muscle recovery view runtime', () => {
   it('dispatches real clicks through Balance, Fatigue, and Strength and preserves selection', async () => {
     await mountStats()
     expectPressed(viewButton('Muscle balance'))
-    expectPressed(balanceRangeButton('Microcycle'))   // the volume window is the default
+    expectPressed(balanceRangeButton('Micro'))   // the volume window is the default
 
     await click(balanceRangeButton('30d'))
     await click(buttonWithText(muscleCard(), 'All'))
@@ -256,7 +256,7 @@ describe('Stats muscle recovery view runtime', () => {
     await click(balanceRangeButton('30d'))
     expect(container.textContent).not.toContain('Target 10–20 effective sets per muscle group each microcycle')
 
-    await click(balanceRangeButton('Microcycle'))
+    await click(balanceRangeButton('Micro'))
     expect(container.textContent).toContain('Target 10–20 effective sets per muscle group each microcycle')
   })
 

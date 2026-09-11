@@ -32,7 +32,8 @@ export const EFFECTIVE_RIR = 4
 export const VOLUME_TARGET = { min: 10, max: 20 }
 
 // The muscle groups shown on the home volume panel, in display order, each folding one or
-// more canonical muscles (see lib/muscles.js MUSCLES). Names are i18n keys.
+// more canonical muscles (see lib/muscles.js MUSCLES). Names are i18n keys; `short`, when
+// present, is the compact label the bar rows use so the bars get the width.
 //   - "Side delts" uses the whole deltoids group as a proxy: the dataset does not separate
 //     the three heads, so this over-counts pressing. Labelled as the user asked for.
 //   - Legs folds every lower-body muscle; Back is upper + lower back only, as specified.
@@ -40,10 +41,10 @@ export const VOLUME_GROUPS = [
   { key: 'legs', name: 'Legs', muscles: ['quadriceps', 'hamstring', 'gluteal', 'adductors', 'hip-flexors', 'calves', 'tibialis'] },
   { key: 'chest', name: 'Chest', muscles: ['chest'] },
   { key: 'back', name: 'Back muscles', muscles: ['upper-back', 'lower-back'] },
-  { key: 'delts', name: 'Side delts', muscles: ['deltoids'] },
+  { key: 'delts', name: 'Side delts', short: 'Lat. delts', muscles: ['deltoids'] },
   { key: 'biceps', name: 'Biceps', muscles: ['biceps'] },
   { key: 'triceps', name: 'Triceps', muscles: ['triceps'] },
-  { key: 'abs', name: 'Abs', muscles: ['abs', 'obliques'] },
+  { key: 'abs', name: 'Abs', short: 'ABS', muscles: ['abs', 'obliques'] },
 ]
 
 // muscle slug -> group key, built once from VOLUME_GROUPS.

@@ -196,6 +196,31 @@ export async function clearBackupFolder() {
   return { supported: !!p, folder: null }
 }
 
+// Audio focus around the rest-end alert (android/…/AudioFocusPlugin.java): duck whatever else is
+// playing while the alert rings, then hand the focus back so that app resumes by itself.
+// Android only — iOS and the web build get navigator.audioSession from lib/sound.js instead.
+let focusOnce = null
+function audioFocusPlugin() {
+  if (!MOBILE) return Promise.resolve(null)
+  if (!focusOnce) {
+    focusOnce = import('@capacitor/core')
+      .then(({ registerPlugin, Capacitor }) =>
+        Capacitor.getPlatform() === 'android' ? registerPlugin('AudioFocus') : null)
+      .catch(() => null)
+  }
+  return focusOnce
+}
+
+export async function duckOtherAudio() {
+  const p = await audioFocusPlugin()
+  if (p) { try { await p.duck() } catch (e) { /* older APK without the plugin */ } }
+}
+
+export async function releaseOtherAudio() {
+  const p = await audioFocusPlugin()
+  if (p) { try { await p.release() } catch (e) { /* older APK without the plugin */ } }
+}
+
 // Falls back to Documents when no folder is set, or when writing to the chosen one fails (card
 // pulled out, permission revoked, sync app uninstalled and took its folder with it) — a backup
 // landing somewhere beats no backup at all.

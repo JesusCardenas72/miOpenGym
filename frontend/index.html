@@ -14,8 +14,37 @@
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" type="image/svg+xml" href="logo.svg">
 <link rel="icon" type="image/png" href="icon-180.png">
+<script>
+  // Apply the saved theme before first paint, so a light-theme launch screen isn't drawn dark.
+  try {
+    var t = (JSON.parse(localStorage.getItem('gym_state_v1')) || {}).theme
+    if (t !== 'light' && t !== 'dark') t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+    document.documentElement.dataset.theme = t
+  } catch (e) {}
+</script>
+<style>
+  /* Launch screen (components/Splash.jsx decides when it goes). Styled here, not in index.css,
+     because it has to render before the bundle — and its CSS — has loaded. It lives outside
+     #root so mounting React doesn't replace it and restart the zoom. */
+  .splash{
+    position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;
+    overflow:hidden;background:#000;color:#fff;transition:opacity .35s ease;
+    font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',Roboto,system-ui,sans-serif;
+  }
+  :root[data-theme="light"] .splash{background:#f2f2f7;color:#000}
+  .splash-in{
+    display:flex;flex-direction:column;align-items:center;gap:18px;
+    animation:splash-zoom 3s ease-in forwards;
+  }
+  @keyframes splash-zoom{from{transform:scale(1)}to{transform:scale(20)}}
+  .splash img{width:min(38vw,168px);height:auto}
+  .splash-name{font-size:32px;font-weight:700;letter-spacing:-.02em}
+  .splash.out{opacity:0;pointer-events:none}
+  @media (prefers-reduced-motion:reduce){.splash{transition:none}.splash-in{animation:none}}
+</style>
 </head>
 <body>
+<div id="splash" class="splash" aria-hidden="true"><div class="splash-in"><img src="logo.svg" alt=""><div class="splash-name">HipertroFit</div></div></div>
 <div id="root"></div>
 <script type="module" src="/src/main.jsx"></script>
 </body>

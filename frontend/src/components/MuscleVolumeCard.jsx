@@ -20,7 +20,7 @@ export default function MuscleVolumeCard({ S }) {
   return <div className="card">
     <div className="row between" style={{ marginBottom: 8 }}>
       <h2 style={{ margin: 0 }}>{t('Volume')}</h2>
-      <span className="small muted">{t('Microcycle')} #{pos.cycle + 1}</span>
+      <span className="small muted">{t('Micro')} #{pos.cycle + 1}</span>
     </div>
     {win.length ? <>
       <BodyMap className="tappable" load={load} body={S.body} selected={sel}

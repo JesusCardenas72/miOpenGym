@@ -8,11 +8,12 @@ import { fmtNum, fmtDate, todayISO, exCount, DAYN } from '../lib/format.js'
 import { beep, vibrate } from '../lib/sound.js'
 import { t, exerciseNameFor } from '../lib/i18n.js'
 import { api } from '../lib/api.js'
-import { insertionIndexAfterCurrentUnit, nextUnfinishedUnit, setProgressHighWater, supersetFlowStep, restAfterSet, restOnRecheck, restSecFor } from '../lib/supersetFlow.js'
+import { insertionIndexAfterCurrentUnit, nextUnfinishedUnit, setProgressHighWater, supersetFlowStep, restAfterSet, restOnRecheck, restSecFor, unitEntryIdx } from '../lib/supersetFlow.js'
+import { restBetweenExercisesSec, restExLabel, settingChoice, REST_EX_PRESETS } from '../lib/rest-between.js'
 import Media from '../components/Media.jsx'
 import { startFlow, exercisePicker, exConfigSheet, exerciseDetailSheet, topWeightSheet, finishWorkout, workoutCompleteSheet, confirmSheet, exerciseNoteSheet, sessionNoteSheet, swapActiveWorkoutExercise } from '../sheets.jsx'
 import Icon from '../components/Icon.jsx'
-import { Button, Check, NumberField } from '../components/ui.jsx'
+import { Button, Check, NumberField, SelectSheet } from '../components/ui.jsx'
 import { nextPrescription, applyPrescription, defaultIncrement } from '../lib/progression.js'
 import { progressionGuidance } from '../lib/progression-copy.js'
 import { glyphOf } from '../lib/glyphs.js'
@@ -745,11 +746,22 @@ function ActiveWorkout() {
       // timer when it did not, and the longest of the group's across a superset (issue #10).
       // Resolved once here so every branch below times the same break.
       const restSec = restSecFor(fresh.entries, freshUnit || [idx], S.restSec)
+      // Once the exercise (or superset) is finished, the break before the next one can have its
+      // own length — the workout's choice, else Settings, else the rest above. See rest-between.js.
+      const exRestSec = restBetweenExercisesSec(restSec, fresh.restExSec, S.restExSec)
+      const unitRestSec = freshUnitDone ? exRestSec : restSec
+      // Which break this is. The closing set never also starts a between-sets rest: the
+      // between-exercises one replaces it, so the two times cannot add up.
+      const unitRestKind = freshUnitDone ? 'exercise' : 'sets'
 
       // A re-check of finished work must not navigate or reopen a sheet, but it may still owe
       // you a rest — see restOnRecheck, and the other half of issue #3.
       if (!progress.isNew) {
-        if (!restBeforeWarmup && restOnRecheck({ timerRunning: !!useUI.getState().timer, unitDone: freshUnitDone, lastUnit: freshWorkoutDone })) startRest(restSec, idx)
+        const running = useUI.getState().timer
+        if (!restBeforeWarmup && restOnRecheck({
+          timerRunning: !!running, runningKind: running?.kind, unitDone: freshUnitDone, lastUnit: freshWorkoutDone,
+          exRestDiffers: exRestSec !== restSec,
+        })) startRest(unitRestSec, idx, unitRestKind)
         return
       }
 
@@ -758,25 +770,45 @@ function ActiveWorkout() {
       // stopRest() first so a rest that belongs after this set replaces the one that was running.
       if (freshUnitDone) stopRest()
       if (!freshUnit || freshUnit.length <= 1) {
-        if (freshUnitDone && !askTop && nextUnit?.length) update(s => { if (s.active) s.active.cur = nextUnit[0] })
-        if (!restBeforeWarmup && restAfterSet({ unitDone: freshUnitDone, lastUnit: freshWorkoutDone })) startRest(restSec, idx)
+        if (freshUnitDone && !askTop && nextUnit?.length) update(s => { if (s.active) s.active.cur = unitEntryIdx(fresh.entries, nextUnit) })
+        if (!restBeforeWarmup && restAfterSet({ unitDone: freshUnitDone, lastUnit: freshWorkoutDone })) startRest(unitRestSec, idx, unitRestKind)
         return
       }
 
-      const step = supersetFlowStep(fresh.entries, freshUnit, idx)
+      const step = supersetFlowStep(fresh.entries, freshUnit, idx, i)
       if (!step) return
       if (step.unitDone) {
         if (nextUnit?.length) {
           // The top-weight sheet's explicit "Just close" path owns the choice not to advance.
-          if (!askTop) update(s => { if (s.active) s.active.cur = nextUnit[0] })
-          if (!restBeforeWarmup) startRest(restSec, idx)
+          if (!askTop) update(s => { if (s.active) s.active.cur = unitEntryIdx(fresh.entries, nextUnit) })
+          if (!restBeforeWarmup) startRest(exRestSec, idx, 'exercise')
         }
       } else {
         if (step.nextIdx != null) update(s => { if (s.active) s.active.cur = step.nextIdx })
-        if (step.roundDone) startRest(restSec, idx)
+        if (step.roundDone) startRest(restSec, idx, 'sets')
       }
     }
   }
+
+  // This session's rest between exercises: 'app' follows Settings, anything else overrides it
+  // for this workout only (S.active.restExSec).
+  const workoutRestEx = A.restExSec === 'sets' || typeof A.restExSec === 'number' ? A.restExSec : null
+  const restExChoice = workoutRestEx ?? settingChoice(S.restExSec)
+  const openRestExPicker = () => useUI.getState().openSheet(close => <SelectSheet
+    title={t('Rest between exercises (this workout)')}
+    value={workoutRestEx ?? 'app'}
+    options={[
+      { value: 'app', label: t('App setting'), subtitle: restExLabel(settingChoice(S.restExSec), t) },
+      { value: 'sets', label: restExLabel('sets', t) },
+      { value: 0, label: restExLabel(0, t) },
+      ...REST_EX_PRESETS.map(v => ({ value: v, label: restExLabel(v, t) })),
+    ]}
+    onChange={v => update(s => {
+      if (!s.active) return
+      if (v === 'app') delete s.active.restExSec
+      else s.active.restExSec = v
+    })}
+    close={close} />)
 
   // Live-presence heartbeat so the admin dashboard can show who's training now. Signed-in only —
   // guests have no server session. Reads fresh state each tick so progress stays current.
@@ -866,6 +898,12 @@ function ActiveWorkout() {
         {S.gifSize === 'off' && <button className="giftoggle inline" data-testid="show-media"
           onClick={() => update(s => { s.gifSize = 'full' })}>
           <Icon name="expand" />{t('Expand')}
+        </button>}
+        {/* The break before the next exercise, adjustable for this session without leaving it.
+            Nothing to adjust on a past workout (no timers) or with a single exercise. */}
+        {!A.backfill && units.length > 1 && <button className="giftoggle inline" data-testid="rest-ex"
+          style={{ marginLeft: 'auto' }} onClick={openRestExPicker}>
+          <Icon name="timer" />{t('Between exercises · {0}', restExChoice === 'sets' ? t('like sets') : restExLabel(restExChoice, t))}
         </button>}
       </div>}
     </div>

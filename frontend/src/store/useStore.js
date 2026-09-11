@@ -10,6 +10,10 @@ import { loadRemote, chooseLocal, forgetRemote, connect } from '../lib/remote.js
 const KEY = 'gym_state_v1'
 export const DEF = {
   unit: 'kg', restSec: 90, restPauseSec: 15, sound: true, timerFlash: false, keepAwake: true, lang: 'en',
+  // Rest after finishing an exercise, before the next one: null = same as the rest between sets,
+  // 0 = none, n = n seconds. A running workout can override it (S.active.restExSec). See
+  // lib/rest-between.js.
+  restExSec: null,
   theme: 'dark', accent: 'lime', body: 'male', targetW: null,
   bodyweight: [], routines: [], week: {}, dayPlan: {},
   // Calendar programming: a repeating microcycle laid out as an ordered sequence of days

@@ -7,7 +7,7 @@ import { beep, clipsDuration, playClips, stopClips } from '../lib/sound.js'
 
 vi.mock('../lib/sound.js', () => ({
   beep: vi.fn(), vibrate: vi.fn(), playClips: vi.fn(), stopClips: vi.fn(),
-  clipsDuration: vi.fn(() => Promise.resolve(0)),
+  clipsDuration: vi.fn(() => Promise.resolve(0)), setAudioFocusHooks: vi.fn(), forgetClip: vi.fn(),
 }))
 
 // "Off" has to hold at the timer itself, not at the four places that start one — the same
