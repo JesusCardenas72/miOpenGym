@@ -1225,7 +1225,7 @@ h4.sec{
 .vol-bars .bar i.plan,.vol-legend i.plan{background:repeating-linear-gradient(-45deg,var(--label-3) 0 2px,transparent 2px 5px);opacity:.75}
 .vol-bars .bar i.plan.over{background:repeating-linear-gradient(-45deg,var(--red) 0 2px,transparent 2px 5px);opacity:.9}
 .vol-legend i.gap{background:var(--surface-2);box-shadow:inset 0 0 0 1px var(--sep)}
-.vol-bars .v{font-size:calc(12px * var(--fs));text-align:left;white-space:nowrap;font-variant-numeric:tabular-nums;color:var(--label-2);
+.vol-bars .v{display:flex;align-items:baseline;font-size:calc(12px * var(--fs));text-align:left;white-space:nowrap;font-variant-numeric:tabular-nums;color:var(--label-2);
   overflow:hidden;max-height:20px;transform-origin:left center;
   transition:max-height .32s cubic-bezier(.2,.8,.2,1),opacity .2s,transform .32s cubic-bezier(.2,.8,.2,1)}
 /* held name (VolumeGroupBars' usePeek): the figures fold up under it and the name slides out */
@@ -1236,6 +1236,9 @@ h4.sec{
 .vol-bars .v b{font-weight:600}
 .vol-bars .v .pct{margin-left:6px;color:var(--label);font-weight:600}
 .vol-bars .v .rng{margin-left:8px;font-size:calc(11px * var(--fs));color:var(--label-3)}
+/* the sets a group still needs to reach its minimum, at the right of its figures (MinimumGaps' row) */
+.vol-bars .v .need{margin-left:auto;padding-left:10px;display:inline-flex;align-items:center;gap:4px;font-weight:600;color:var(--orange)}
+.vol-bars .v .need.met{color:var(--green)}
 .vol-exec{margin-bottom:6px;color:var(--label-2)}
 .vol-exec b{color:var(--label);font-variant-numeric:tabular-nums}
 /* A split Back / Legs: the parts sit under the whole group's name, indented behind a rail. */
@@ -1246,14 +1249,6 @@ h4.sec{
 .vol-legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px}
 .vol-legend span{display:inline-flex;align-items:center;gap:5px;font-size:calc(11.5px * var(--fs));color:var(--label-2)}
 .vol-legend i{width:9px;height:9px;border-radius:99px;display:inline-block}
-/* once the block's planned sessions are all done: the sets each group still needs (MinimumGaps) */
-.vol-need{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px;margin-top:6px}
-.vol-need-cell{background:var(--surface-2);border-radius:12px;padding:9px 10px 10px;min-width:0;display:flex;flex-direction:column;gap:2px}
-.vol-need-cell.met{background:color-mix(in srgb,var(--green) 12%,var(--surface-2))}
-.vol-need-cell .nm{font-size:calc(12.5px * var(--fs));color:var(--label-2);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.vol-need-cell b{font-size:calc(22px * var(--fs));font-weight:650;letter-spacing:-.02em;line-height:1.1;color:var(--orange);font-variant-numeric:tabular-nums}
-.vol-need-cell .lb{font-size:calc(11px * var(--fs));color:var(--label-3)}
-.vol-need-cell .ok{display:inline-flex;align-items:center;gap:4px;margin-top:4px;font-size:calc(12px * var(--fs));font-weight:600;color:var(--green)}
 
 /* --- calendar programming sheet --- */
 .prog-seq{display:flex;flex-direction:column;gap:6px;margin-bottom:10px}

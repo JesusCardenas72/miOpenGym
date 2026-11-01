@@ -16,7 +16,8 @@ import { logExtraSheet } from '../sheets.jsx'
 // microcycle already behind; that one reads its log only — the plan is today's programming,
 // which says nothing about what that block planned.
 // Once the running block has every planned session done, or its scheduled workout days are over,
-// the sets each group still needs for its minimum follow the bars (MinimumGaps).
+// each group's line of the bars shows the sets it still needs for its minimum, and MinimumGaps
+// sums them up under the bars.
 export default function MuscleVolumeCard({ S }) {
   const [sel, setSel] = useState(null)
   const [cycle, pick, list] = useCycleChoice(S)
@@ -48,7 +49,7 @@ export default function MuscleVolumeCard({ S }) {
         <span className="nm"><b>{t(MUSCLE_NAME[sel])}</b></span>
         <span className="v">{sets(sel) ? t('{0} sets', sets(sel)) : t('not trained')}</span>
       </div>}
-      <VolumeGroupBars vol={vol} planned={planned} />
+      <VolumeGroupBars vol={vol} planned={planned} minimum={settled} />
       {settled && <MinimumGaps vol={vol} complete={pos.complete} />}
     </> : <div className="muted small">
       {!cycle.current ? t('Nothing was logged in this microcycle.')
