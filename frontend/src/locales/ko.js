@@ -1451,4 +1451,12 @@ export default {
   'At minimum': '최소 기준 달성',
   'Scheduled days are over — sets still missing in {0} of {1} groups.': '예정된 훈련일이 지났습니다 — {1}개 근육군 중 {0}개에 세트가 아직 부족합니다.',
   'Scheduled days are over — every group reaches its minimum.': '예정된 훈련일이 지났습니다 — 모든 근육군이 최소 기준에 도달했습니다.',
+  '{0} eff': '{0} 유효',
+  'up to the optimal max': '최적 최대치까지',
+  'planned, to do': '계획됨, 아직 할 것',
+  'plan {0} · max {1}': '계획 {0} · 최대 {1}',
+  'The plan goes past the optimal maximum in some groups — it should stay below it.': '일부 근육군에서 계획이 최적 최대치를 넘습니다. 그 아래에 머물러야 합니다.',
+  'The full bar is the optimal maximum; the plan should stay below it.': '전체 막대는 최적 최대치이며, 계획은 그 아래에 머물러야 합니다.',
+  'How to read this': '읽는 방법',
+  'Executed {0} of {1} planned sets': '계획된 {1}세트 중 {0}세트 실행',
 }

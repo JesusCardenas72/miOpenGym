@@ -1456,4 +1456,12 @@ export default {
   'At minimum': 'Minimum elérve',
   'Scheduled days are over — sets still missing in {0} of {1} groups.': 'A tervezett edzésnapok lejártak — {1} izomcsoportból {0}-ban még hiányoznak a sorozatok.',
   'Scheduled days are over — every group reaches its minimum.': 'A tervezett edzésnapok lejártak — minden izomcsoport eléri a minimumot.',
+  '{0} eff': '{0} hat.',
+  'up to the optimal max': 'az optimális maximumig',
+  'planned, to do': 'tervezett, még hátra van',
+  'plan {0} · max {1}': 'terv {0} · max. {1}',
+  'The plan goes past the optimal maximum in some groups — it should stay below it.': 'Néhány csoportban a terv átlépi az optimális maximumot – alatta kellene maradnia.',
+  'The full bar is the optimal maximum; the plan should stay below it.': 'A teljes sáv az optimális maximum; a tervnek alatta kellene maradnia.',
+  'How to read this': 'Így olvasd',
+  'Executed {0} of {1} planned sets': 'A {1} tervezett sorozatból {0} végrehajtva',
 }

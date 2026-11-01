@@ -1464,4 +1464,12 @@ export default {
   'At minimum': 'ถึงขั้นต่ำแล้ว',
   'Scheduled days are over — sets still missing in {0} of {1} groups.': 'วันฝึกที่กำหนดไว้ผ่านไปแล้ว — ยังขาดเซ็ตในอีก {0} จาก {1} กลุ่มกล้ามเนื้อ',
   'Scheduled days are over — every group reaches its minimum.': 'วันฝึกที่กำหนดไว้ผ่านไปแล้ว — ทุกกลุ่มกล้ามเนื้อถึงขั้นต่ำแล้ว',
+  '{0} eff': '{0} มีประสิทธิภาพ',
+  'up to the optimal max': 'ถึงค่าสูงสุดที่เหมาะสม',
+  'planned, to do': 'วางแผนไว้ ยังต้องทำ',
+  'plan {0} · max {1}': 'แผน {0} · สูงสุด {1}',
+  'The plan goes past the optimal maximum in some groups — it should stay below it.': 'แผนเกินค่าสูงสุดที่เหมาะสมในบางกลุ่ม ควรอยู่ต่ำกว่านั้น',
+  'The full bar is the optimal maximum; the plan should stay below it.': 'แถบเต็มคือค่าสูงสุดที่เหมาะสม แผนควรอยู่ต่ำกว่านั้น',
+  'How to read this': 'วิธีอ่านค่านี้',
+  'Executed {0} of {1} planned sets': 'ทำแล้ว {0} จาก {1} เซ็ตที่วางแผนไว้',
 }

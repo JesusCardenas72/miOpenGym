@@ -1451,4 +1451,12 @@ export default {
   'At minimum': 'Minimo raggiunto',
   'Scheduled days are over — sets still missing in {0} of {1} groups.': 'I giorni di allenamento previsti sono finiti — mancano ancora serie in {0} gruppi su {1}.',
   'Scheduled days are over — every group reaches its minimum.': 'I giorni di allenamento previsti sono finiti — ogni gruppo raggiunge il proprio minimo.',
+  '{0} eff': '{0} eff.',
+  'up to the optimal max': 'fino al massimo ottimale',
+  'planned, to do': 'programmato, da fare',
+  'plan {0} · max {1}': 'prog. {0} · max {1}',
+  'The plan goes past the optimal maximum in some groups — it should stay below it.': 'La programmazione supera il massimo ottimale in alcuni gruppi: dovrebbe restare al di sotto.',
+  'The full bar is the optimal maximum; the plan should stay below it.': 'La barra piena è il massimo ottimale; la programmazione dovrebbe restare al di sotto.',
+  'How to read this': 'Come leggere questo',
+  'Executed {0} of {1} planned sets': 'Eseguite {0} di {1} serie programmate',
 }

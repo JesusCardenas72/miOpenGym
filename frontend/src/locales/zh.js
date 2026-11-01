@@ -1451,4 +1451,12 @@ export default {
   'At minimum': '已达最低量',
   'Scheduled days are over — sets still missing in {0} of {1} groups.': '计划的训练日已过——{1} 个肌群中有 {0} 个仍缺组数。',
   'Scheduled days are over — every group reaches its minimum.': '计划的训练日已过——每个肌群都达到了最低量。',
+  '{0} eff': '{0} 有效',
+  'up to the optimal max': '直至最佳上限',
+  'planned, to do': '已计划，待完成',
+  'plan {0} · max {1}': '计划 {0} · 上限 {1}',
+  'The plan goes past the optimal maximum in some groups — it should stay below it.': '计划在部分肌群上超过了最佳上限，应保持在其之下。',
+  'The full bar is the optimal maximum; the plan should stay below it.': '整条进度条即最佳上限；计划应保持在其之下。',
+  'How to read this': '如何阅读',
+  'Executed {0} of {1} planned sets': '已完成计划的 {1} 组中的 {0} 组',
 }

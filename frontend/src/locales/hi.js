@@ -1451,4 +1451,12 @@ export default {
   'At minimum': 'न्यूनतम पर',
   'Scheduled days are over — sets still missing in {0} of {1} groups.': 'निर्धारित प्रशिक्षण दिन बीत चुके हैं — {1} में से {0} मांसपेशी समूहों में अभी सेट बाकी हैं।',
   'Scheduled days are over — every group reaches its minimum.': 'निर्धारित प्रशिक्षण दिन बीत चुके हैं — हर मांसपेशी समूह अपने न्यूनतम तक पहुँच गया है।',
+  '{0} eff': '{0} प्रभावी',
+  'up to the optimal max': 'इष्टतम अधिकतम तक',
+  'planned, to do': 'नियोजित, करना बाकी',
+  'plan {0} · max {1}': 'योजना {0} · अधिकतम {1}',
+  'The plan goes past the optimal maximum in some groups — it should stay below it.': 'कुछ समूहों में योजना इष्टतम अधिकतम से आगे निकल जाती है — इसे उससे नीचे रहना चाहिए।',
+  'The full bar is the optimal maximum; the plan should stay below it.': 'पूरी पट्टी इष्टतम अधिकतम है; योजना को उससे नीचे रहना चाहिए।',
+  'How to read this': 'इसे कैसे पढ़ें',
+  'Executed {0} of {1} planned sets': 'नियोजित {1} में से {0} सेट पूरे किए गए',
 }
