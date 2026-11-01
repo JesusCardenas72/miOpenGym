@@ -201,6 +201,19 @@ export function cycleDue(S, today = todayISO()) {
 }
 
 /**
+ * Whether the scheduled workout days of the running microcycle have all gone by. Its last training
+ * day is the step the sequence lays out last before the rest days that close it (cycleLayout). Past
+ * that day the calendar has no more sessions for the block, whether or not they were trained: the
+ * block stays open until its rest days pass or the user closes it, but the count will not grow on
+ * the calendar. Without a sequence there are no scheduled days, so this is false.
+ */
+export function workoutDaysOver(S, today = todayISO()) {
+  const { days, tail } = cycleLayout(S)
+  if (!days) return false
+  return today > addDays(cyclePosition(S).start, days - tail - 1)
+}
+
+/**
  * Whether a session started now would open the next microcycle — and so has to be asked
  * about first: one the block counts (isPlannedSession), with the running block complete.
  * A routine id of null is a freestyle session.

@@ -1449,4 +1449,6 @@ export default {
   'Microcycle complete — sets still missing in {0} of {1} groups.': 'माइक्रोसाइकल पूरा — {1} में से {0} मांसपेशी समूहों में अभी सेट बाकी हैं।',
   'Microcycle complete — every group reaches its minimum.': 'माइक्रोसाइकल पूरा — हर मांसपेशी समूह अपने न्यूनतम तक पहुँच गया है।',
   'At minimum': 'न्यूनतम पर',
+  'Scheduled days are over — sets still missing in {0} of {1} groups.': 'निर्धारित प्रशिक्षण दिन बीत चुके हैं — {1} में से {0} मांसपेशी समूहों में अभी सेट बाकी हैं।',
+  'Scheduled days are over — every group reaches its minimum.': 'निर्धारित प्रशिक्षण दिन बीत चुके हैं — हर मांसपेशी समूह अपने न्यूनतम तक पहुँच गया है।',
 }

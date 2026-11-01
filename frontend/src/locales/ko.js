@@ -1449,4 +1449,6 @@ export default {
   'Microcycle complete — sets still missing in {0} of {1} groups.': '마이크로사이클 완료 — {1}개 근육군 중 {0}개에 세트가 아직 부족합니다.',
   'Microcycle complete — every group reaches its minimum.': '마이크로사이클 완료 — 모든 근육군이 최소 기준에 도달했습니다.',
   'At minimum': '최소 기준 달성',
+  'Scheduled days are over — sets still missing in {0} of {1} groups.': '예정된 훈련일이 지났습니다 — {1}개 근육군 중 {0}개에 세트가 아직 부족합니다.',
+  'Scheduled days are over — every group reaches its minimum.': '예정된 훈련일이 지났습니다 — 모든 근육군이 최소 기준에 도달했습니다.',
 }

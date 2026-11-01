@@ -1449,4 +1449,6 @@ export default {
   'Microcycle complete — sets still missing in {0} of {1} groups.': 'Microciclo completato — mancano ancora serie in {0} gruppi su {1}.',
   'Microcycle complete — every group reaches its minimum.': 'Microciclo completato — ogni gruppo raggiunge il proprio minimo.',
   'At minimum': 'Minimo raggiunto',
+  'Scheduled days are over — sets still missing in {0} of {1} groups.': 'I giorni di allenamento previsti sono finiti — mancano ancora serie in {0} gruppi su {1}.',
+  'Scheduled days are over — every group reaches its minimum.': 'I giorni di allenamento previsti sono finiti — ogni gruppo raggiunge il proprio minimo.',
 }

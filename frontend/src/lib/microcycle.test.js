@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   STRATEGIES, DEFAULT_MICROCYCLE, strategyOf, microcycleLen, cycleStartOf, sessionsSince,
   cyclePosition, trainingSteps, nextStepOf, cycleWorkouts, cycleStrip,
-  nextCycleStart, closeMicrocycle,
+  nextCycleStart, closeMicrocycle, workoutDaysOver,
 } from './microcycle.js'
 import { REST } from './program.js'
 
@@ -273,3 +273,35 @@ describe('closing a microcycle by hand', () => {
     expect(JSON.stringify(S)).toBe(before)
   })
 })
+
+
+describe('workoutDaysOver', () => {
+  // Push, Pull, Legs and a rest day, twice: one PPL microcycle is eight days, its training days the
+  // 2nd to the 8th of March and the 9th a rest day.
+  const seq = ['push', 'pull', 'legs', REST, 'push', 'pull', 'legs', REST]
+  const S = (over = {}) => ({
+    workouts: [],
+    program: { on: true, seq, anchor: '2026-03-02', cycleStart: '2026-03-02', strategy: 'ppl' },
+    ...over,
+  })
+
+  it('is over once the last training day of the sequence has gone by', () => {
+    expect(workoutDaysOver(S(), '2026-03-08')).toBe(false)   // the last training day itself
+    expect(workoutDaysOver(S(), '2026-03-09')).toBe(true)    // the rest day after it
+  })
+
+  it('does not wait for the sessions: untrained ones leave the days over all the same', () => {
+    expect(workoutDaysOver(S({ workouts: [{ d: '2026-03-02', routineId: 'push' }] }), '2026-03-09')).toBe(true)
+  })
+
+  it('reads the training days off the sequence, rest days after the last one aside', () => {
+    const fullBody = { on: true, seq: ['a', 'b', 'c', REST, REST], anchor: '2026-03-02', cycleStart: '2026-03-02', strategy: 'full-body' }
+    expect(workoutDaysOver({ workouts: [], program: fullBody }, '2026-03-04')).toBe(false)   // the third training day
+    expect(workoutDaysOver({ workouts: [], program: fullBody }, '2026-03-05')).toBe(true)
+  })
+
+  it('has no scheduled days without a sequence', () => {
+    expect(workoutDaysOver(S({ program: { seq: [], strategy: 'ppl' } }), '2026-06-01')).toBe(false)
+  })
+})
+

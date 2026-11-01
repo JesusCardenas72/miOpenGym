@@ -955,6 +955,8 @@ export const PT_BR_OVERRIDES = {
   'Microcycle complete — sets still missing in {0} of {1} groups.': 'Microciclo concluído — faltam séries em {0} de {1} grupos.',
   'Microcycle complete — every group reaches its minimum.': 'Microciclo concluído — todos os grupos atingem o seu mínimo.',
   'At minimum': 'No mínimo',
+  'Scheduled days are over — sets still missing in {0} of {1} groups.': 'Os dias de treino programados terminaram — faltam séries em {0} de {1} grupos.',
+  'Scheduled days are over — every group reaches its minimum.': 'Os dias de treino programados terminaram — todos os grupos atingem o seu mínimo.',
 }
 
 export default { ...pt, ...PT_BR_OVERRIDES,

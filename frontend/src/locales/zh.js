@@ -1449,4 +1449,6 @@ export default {
   'Microcycle complete — sets still missing in {0} of {1} groups.': '小周期已完成——{1} 个肌群中有 {0} 个仍缺组数。',
   'Microcycle complete — every group reaches its minimum.': '小周期已完成——每个肌群都达到了最低量。',
   'At minimum': '已达最低量',
+  'Scheduled days are over — sets still missing in {0} of {1} groups.': '计划的训练日已过——{1} 个肌群中有 {0} 个仍缺组数。',
+  'Scheduled days are over — every group reaches its minimum.': '计划的训练日已过——每个肌群都达到了最低量。',
 }
