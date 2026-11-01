@@ -1451,4 +1451,12 @@ export default {
   'At minimum': 'Minimum osiągnięte',
   'Scheduled days are over — sets still missing in {0} of {1} groups.': 'Zaplanowane dni treningowe minęły — brakuje jeszcze serii w {0} z {1} grup.',
   'Scheduled days are over — every group reaches its minimum.': 'Zaplanowane dni treningowe minęły — każda grupa osiąga swoje minimum.',
+  '{0} eff': '{0} efekt.',
+  'up to the optimal max': 'do optymalnego maksimum',
+  'planned, to do': 'zaplanowane, do zrobienia',
+  'plan {0} · max {1}': 'plan {0} · maks. {1}',
+  'The plan goes past the optimal maximum in some groups — it should stay below it.': 'Plan przekracza optymalne maksimum w niektórych grupach — powinien pozostać poniżej.',
+  'The full bar is the optimal maximum; the plan should stay below it.': 'Pełny pasek to optymalne maksimum; plan powinien pozostać poniżej.',
+  'How to read this': 'Jak to czytać',
+  'Executed {0} of {1} planned sets': 'Wykonano {0} z {1} zaplanowanych serii',
 }
