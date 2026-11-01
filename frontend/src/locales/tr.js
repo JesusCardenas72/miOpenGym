@@ -1449,4 +1449,6 @@ export default {
   'Microcycle complete — sets still missing in {0} of {1} groups.': 'Mikrodöngü tamamlandı — {1} kas grubunun {0} tanesinde hâlâ set eksik.',
   'Microcycle complete — every group reaches its minimum.': 'Mikrodöngü tamamlandı — her kas grubu minimuma ulaştı.',
   'At minimum': 'Minimumda',
+  'Scheduled days are over — sets still missing in {0} of {1} groups.': 'Planlanan antrenman günleri bitti — {1} kas grubunun {0} tanesinde hâlâ set eksik.',
+  'Scheduled days are over — every group reaches its minimum.': 'Planlanan antrenman günleri bitti — her kas grubu minimuma ulaştı.',
 }
