@@ -1217,7 +1217,7 @@ h4.sec{
 .vol-help .vol-legend i.gap{background:transparent}
 .vol-legend i.plan,.vol-legend i.gap{width:18px;height:8px;border-radius:4px}
 .vol-bars{display:flex;flex-direction:column;gap:11px;padding:4px 0}
-.vol-bar-row{display:grid;grid-template-columns:minmax(0,1fr) max-content;align-items:baseline;column-gap:8px;row-gap:5px}
+.vol-bar-row{display:grid;grid-template-columns:minmax(0,1fr);row-gap:4px}
 .vol-bars .nm{font-size:calc(14px * var(--fs));white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   -webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 .vol-bars .bar{grid-column:1/-1;position:relative;height:8px;border-radius:4px;background:var(--surface-2);overflow:hidden}
@@ -1225,11 +1225,11 @@ h4.sec{
 .vol-bars .bar i.plan,.vol-legend i.plan{background:repeating-linear-gradient(-45deg,var(--label-3) 0 2px,transparent 2px 5px);opacity:.75}
 .vol-bars .bar i.plan.over{background:repeating-linear-gradient(-45deg,var(--red) 0 2px,transparent 2px 5px);opacity:.9}
 .vol-legend i.gap{background:var(--surface-2);box-shadow:inset 0 0 0 1px var(--sep)}
-.vol-bars .v{font-size:calc(12px * var(--fs));text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;color:var(--label-2);
-  overflow:hidden;max-width:240px;transform-origin:right center;
-  transition:max-width .32s cubic-bezier(.2,.8,.2,1),opacity .2s,transform .32s cubic-bezier(.2,.8,.2,1)}
-/* held name (VolumeGroupBars' usePeek): the figures fold away to the right and the name slides out */
-.vol-bar-row.peek .v{max-width:0;opacity:0;transform:scale(.7)}
+.vol-bars .v{font-size:calc(12px * var(--fs));text-align:left;white-space:nowrap;font-variant-numeric:tabular-nums;color:var(--label-2);
+  overflow:hidden;max-height:20px;transform-origin:left center;
+  transition:max-height .32s cubic-bezier(.2,.8,.2,1),opacity .2s,transform .32s cubic-bezier(.2,.8,.2,1)}
+/* held name (VolumeGroupBars' usePeek): the figures fold up under it and the name slides out */
+.vol-bar-row.peek .v{max-height:0;opacity:0;transform:scale(.7)}
 .vol-bar-row.peek .nm{animation:vol-peek .32s cubic-bezier(.2,.8,.2,1)}
 @keyframes vol-peek{from{clip-path:inset(0 30% 0 0)}to{clip-path:inset(0 0 0 0)}}
 @media (prefers-reduced-motion:reduce){.vol-bars .v{transition:none}.vol-bar-row.peek .nm{animation:none}}

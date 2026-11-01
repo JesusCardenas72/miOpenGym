@@ -7,8 +7,8 @@ import { VOLUME_GROUPS, VOLUME_TARGET, volumeStatus, volumeColor, targetOf, grou
 // Effective sets per muscle group for one microcycle, read against the 10–20 target band.
 // Shared by Home and Stats so the two can never report different numbers for the same block.
 //
-// Each group is two lines: its name with the figures, then the bar on its own across the full
-// width, so the figures never squeeze the bar. The bar is measured against the top of the band, not against the best-worked group: full
+// Each group is three lines: its name, the figures under it, then the bar on its own across the
+// full width. The bar is measured against the top of the band, not against the best-worked group: full
 // width is the band's top (20 sets for most), so a short bar means "short of the target", not
 // "trained less than legs".
 //
@@ -77,7 +77,7 @@ export default function VolumeGroupBars({ vol, title, planned }) {
     {exec && <div className="vol-exec small">
       {t('Executed {0} of {1} planned sets', exec.done, exec.planned)} <b>{exec.pct}%</b>
     </div>}
-    {/* Each row: name and figures on one line, the bar under them across the whole width. */}
+    {/* Each row: the name, the figures under it on a line of their own, then the bar across the whole width. */}
     <div className="vol-bars">
       {VOLUME_GROUPS.map((g, i) => {
         const band = targetOf(g)
